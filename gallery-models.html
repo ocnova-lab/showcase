@@ -1,0 +1,1144 @@
+<title>Фотогалерея · модели взаимодействия M1–M9</title>
+<style>
+  /* ============================================================
+     Дизайн-система моделей (Figma «Claud VC») — ПОПОЛНЯЕТСЯ
+     по мере прохождения M1–M9: новый приём = новый токен/компонент,
+     не копипаста стилей. Имена — по разделу свода «Дизайн-система моделей».
+     Токены:  --bg фон · --copy копия · --original оригинал/активная копия ·
+              --num номер на оригинале · --accent акцент ·
+              --ink-text текст описаний · --muted служебный текст ·
+              --pill активная пилюля · --pill-off неактивная ·
+              --pill-dim неспроектированная · --sub-off неактивный подвариант ·
+              --meta мета-слой (инфо, комментарии) · --meta-dots точки инфо-кнопки
+     Сетка (референс benmingo.com): --module = 1/12 сцены · --gap-col межколонник ·
+              --gap-row интервал строк (~2.6× межколонника: грид читается строками) ·
+              --edge краевое поле = полуинтервал; cq-единицы считаются от сцены (.stage)
+     Компоненты: .pill · .pill-sub · .info-btn · .passport (двухколонный, по макету) ·
+              .knob-btn + .knobs (панель ручек, «проси ручку — не значение») ·
+              .ctl-zone — носитель управляющей позиции «зона-коридор»
+              (носитель «линия» удалён вместе с меткой M4 по R19; понятие живёт в словаре свода)
+     Ручки поверх токенов: --chip-h высота чипа · --lenta-gap межколонник ленты ·
+              --one-gap межколонник ленты состояний · data-fmt на body — подача оригинала
+     ============================================================ */
+  :root{
+    --bg:#FFFFFF; --copy:#E1E6EB; --original:#9BA9B7; --num:#C6CED7; --accent:#FF5D27;
+    --ink-text:#212428; --muted:#9BA9B7;
+    --pill:var(--accent); --pill-off:#C6CED7; --pill-dim:#E5EAEF; --sub-off:#FFB69E;
+    --meta:#404446; --meta-hover:#2E3133; --meta-dots:#C4C4C4;
+    --module:8.3333cqw; --gap-col:1.1111cqw; --gap-row:2.9167cqw; --edge:0.5556cqw;
+    --font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{overflow:hidden;background:var(--bg);color:var(--ink-text);font-family:var(--font);-webkit-font-smoothing:antialiased}
+  .app{height:100dvh;display:flex;flex-direction:column}
+
+  /* переключатель моделей — пилюли; подварианты раскрываются вниз по ховеру (макет M5.1/M5.2/M5.3) */
+  /* переключатель плавает поверх сцены — без белой подложки, сцена во всю высоту */
+  .top{position:absolute;top:0;left:0;right:0;z-index:40;display:flex;justify-content:center;padding:16px 18px 10px;pointer-events:none}
+  .switch{display:flex;gap:8px;align-items:flex-start;pointer-events:auto}
+  .pill{appearance:none;border:0;border-radius:90px;background:var(--pill-off);color:#fff;font:500 12px/1 var(--font);letter-spacing:.02em;padding:10px 16px;cursor:pointer}
+  .pill[aria-selected="true"]{background:var(--pill)}
+  .pill.dead{background:var(--pill-dim);cursor:default}
+  .pill:focus-visible{outline:1.5px solid var(--accent);outline-offset:2px} /* хендофф: контур 1.5 с отступом 2 */
+  .pillwrap{position:relative}
+  .sublist{position:absolute;top:100%;left:50%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:6px;padding-top:6px;z-index:30}
+  .pillwrap:hover .sublist,.pillwrap:focus-within .sublist{display:flex}
+  .pill-sub{appearance:none;border:0;border-radius:90px;background:var(--sub-off);color:#fff;font:500 12px/1 var(--font);padding:9px 14px;cursor:pointer;white-space:nowrap}
+  .pill-sub[aria-pressed="true"]{background:var(--pill)}
+  .pill-sub:focus-visible{outline:1.5px solid var(--accent);outline-offset:2px}
+
+  .stage{flex:1;position:relative;min-height:0;margin:0 18px;container-type:size} /* сцена до низа экрана; контейнер cq-единиц сетки */
+  .screen{position:absolute;inset:0;background:var(--bg);overflow:hidden;transition:opacity .15s}
+  .screen.dim{opacity:.16} /* сцена бледнеет под описанием (фрейм 7:693) */
+
+  .orangefill{background:var(--original)} /* имя историческое: заливка оригинала */
+  /* номер на оригинале никогда не увеличивается: тот же кегль, что у превью (макет: Inter 700/22; узел 7:777 — #C6CED7),
+     по центру кадра, не масштабируется */
+  .idx{font:700 14px/1 var(--font);color:var(--num)}
+
+  /* отступы сцены кратны полуинтервалу: бока = полуинтервал (--edge), верх/низ = межколонник (2 полуинтервала) */
+  .gridwrap{position:absolute;inset:0;overflow:auto;display:flex;justify-content:center;padding:60px var(--edge) calc(var(--edge)*2)} /* верхний зазор — под плавающий переключатель */
+  /* M1/M2 — скролл запрещён (LVL180): лонгрид без колеса/тача, ход только кликами.
+     Симметрия: грид по центру между двумя равными полями 76px — слева пустое, справа панель кнопок; без линий-разделителей */
+  .gridwrap.noscroll{overflow:hidden;touch-action:none;left:76px;right:76px}
+  .pgnav{position:absolute;top:0;bottom:0;right:0;width:76px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg)}
+  .pgbtn{appearance:none;width:48px;height:48px;border:0;border-radius:90px;background:var(--accent);color:#fff;font:600 16px/1 var(--font);cursor:pointer}
+  .pgbtn:disabled{background:var(--pill-dim);cursor:default}
+  .pgbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  /* Модульная сетка (референс): ячейка = целое число модулей, число колонок считает JS от --module и порога
+     читаемости (R18: 180px M1/M2, 150px M4 — нижняя граница). Строчность: интервал строк ≫ межколонника. */
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);column-gap:var(--gap-col);row-gap:var(--gap-row);width:100%;align-content:start;height:max-content}
+  /* номер — по центру плашки, параметры из макета (узел 7:699): Inter 700/22; подписи-строки сняты по приёмке */
+  .thumb{appearance:none;padding:0;border:0;background:var(--copy);cursor:pointer;aspect-ratio:3/2;display:grid;place-items:center}
+  .thumb:hover,.thumb:focus-visible{outline:1px solid var(--accent);outline-offset:-1px}
+  .thumb .n{font:700 14px/1 var(--font);color:var(--num)} /* канон номеров: 700/22 #C6CED7 (узлы 7:699 = 8:894) */
+
+  /* режим оригинала: контейнер = клик-зона, кадр внутри подаётся по ручке формата (系темно = заливка) */
+  .photofull{position:absolute;inset:0;display:grid;place-items:center;cursor:zoom-out;background:var(--bg)}
+  .photo-frame{display:grid;place-items:center;width:100%;height:100%}
+  body[data-fmt="land"] .photo-frame{width:min(96cqw,138cqh);height:auto;aspect-ratio:3/2}
+  body[data-fmt="port"] .photo-frame{width:auto;height:92cqh;aspect-ratio:2/3}
+
+  .origlayer{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(255,255,255,.82);pointer-events:none;container-type:size}
+  .origlayer[hidden]{display:none}
+  /* R18: оригинал от сцены (70% ширины либо упор в высоту), не фикс-пиксели; подача — по ручке формата */
+  .origbig{width:min(70cqw,105cqh);aspect-ratio:3/2;display:grid;place-items:center}
+  body[data-fmt="port"] .origbig{width:auto;height:88cqh;aspect-ratio:2/3}
+  body[data-fmt="cover"] .origbig{width:100%;height:100%;aspect-ratio:auto}
+
+  .m3stage{position:absolute;left:0;right:0;top:0;bottom:calc(var(--chip-h,80px) + 24px);display:grid;place-items:center;overflow:hidden;container-type:size}
+  /* R18: кадр от сцены — при полном вытягивании занимает её целиком; подача — по ручке формата */
+  .morph{width:min(92cqw,132cqh);aspect-ratio:3/2;display:grid;place-items:center;transform-origin:center;will-change:transform}
+  body[data-fmt="port"] .morph{width:auto;height:92cqh;aspect-ratio:2/3}
+  body[data-fmt="cover"] .morph{width:100cqw;height:100cqh;aspect-ratio:auto}
+  .morph .idx{will-change:transform} /* контр-масштаб: номер не растёт вместе с кадром */
+  /* M5.2 «Лента» — айфон-галерея (LVL180): зона оригинала сверху + филмстрип-лента снизу (разделение в пространстве).
+     Горизонтальная лента снизу выбрана: скролл-навигация по X эргономична для полосы превью, зона оригинала занимает верх целиком */
+  .m5strip{position:absolute;left:0;right:0;top:0;bottom:0;display:flex;flex-direction:column}
+  .m5orig{flex:1;min-height:0;display:grid;place-items:center;container-type:size;background:var(--bg)}
+  .m5orig .origbig{width:min(84cqw,150cqh)} /* крупный кадр зоны — от зоны, не 70% M2 (отдельная территория) */
+  body[data-fmt="port"] .m5orig .origbig{width:auto;height:92cqh;aspect-ratio:2/3}
+  body[data-fmt="cover"] .m5orig .origbig{width:100%;height:100%;aspect-ratio:auto}
+  .m5film{flex:none;height:calc(var(--chip-h,80px) + 24px);overflow-x:auto;overflow-y:hidden;display:flex;gap:var(--lenta-gap,7px);padding:12px;background:transparent;scrollbar-width:thin}
+  .m5film .lchip{cursor:default} /* восприятие — ховер, не клик */
+
+  /* M9 — лента без собственного скролла: её везёт только X-позиция курсора */
+  .lenta.m9{overflow:hidden;touch-action:none}
+  .lenta.m9 .lchip{pointer-events:none}
+
+  /* M9 · «Один оригинал» (R17, ветка времени): лента оригиналов, Y = масштаб состояния */
+  .onewrap{position:absolute;inset:0;overflow:hidden;cursor:crosshair;touch-action:none}
+  .onestrip{position:absolute;left:0;top:0;height:100%;display:flex;align-items:center;gap:var(--one-gap,8px);padding:0 8px;will-change:transform}
+  .otile{flex:none;height:var(--h,120px);width:calc(var(--h,120px)*1.5);position:relative;display:grid;place-items:center}
+  body[data-fmt="port"] .otile{width:calc(var(--h,120px)*.6667)}
+  .otile span{font:700 14px/1 var(--font);color:var(--num)} /* номер не масштабируется с кадром; кегль макета */
+
+  /* M4 — плотный многоколонный грид-лонгрид (R16): навигационная плотность копий, скролл = непрерывный ход */
+  .gridwrap.m4{overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
+  /* M4: тот же модуль и та же строчность; порог ýже (150px) — копия чисто навигационная (R16), колонки считает JS.
+     Линия-центр, счётчик и ракорд удалены по R19: активность создаёт только клик, «где я» — движение и полоса прокрутки */
+  .l4full[hidden]{display:none}
+  /* M2-кольцо: межстрочный растянут до 1.5 системного интервала (вердикт «растяни за счёт расстояния между строчками»);
+     при нехватке периода гвард дорастягивает интервал в JS */
+  .m2ring .grid{row-gap:calc(var(--gap-row)*1.5)}
+
+  .lenta{position:absolute;left:0;right:0;bottom:0;display:flex;gap:var(--lenta-gap,7px);overflow-x:auto;padding:12px;background:transparent;scrollbar-width:thin;height:calc(var(--chip-h,80px) + 24px)}
+  /* M3.1 — лента-кольцо (R20): ручного скролла нет, ход только программный (клик центрирует кратчайшей дугой) */
+  .lenta.ring{overflow:hidden;touch-action:none}
+  /* M7 — крупная центральная лента: главная поверхность = сама лента (видимое листание, не тонкая полоса).
+     Курсор X ведёт по ленте (m78nav), лента заметно едет; активный кадр под курсором — обводка акцентом + лёгкий выступ. */
+  /* M7: филмстрип умеренных превью + ракорд по краям (первый/последний доезжают до центра); активный — по центральной линии */
+  .m7lenta{position:absolute;inset:0;display:flex;align-items:center;gap:var(--lenta-gap,10px);padding-inline:calc(50% - var(--chip-h,80px)*0.75);overflow:hidden;touch-action:none;cursor:pointer}
+  .m7lenta .lchip{flex:none;width:auto;height:var(--chip-h,80px);aspect-ratio:3/2;background:var(--copy);opacity:.5;transition:transform .12s,opacity .12s,outline-color .12s}
+  .m7lenta .lchip .n{color:var(--muted)}
+  .m7lenta .lchip[aria-current="true"]{outline:2px solid var(--accent);outline-offset:2px;transform:scale(1.55);opacity:1;background:var(--original);z-index:1} /* активный кадр по центру: крупнее, залит, ярче */
+  .m7lenta .lchip[aria-current="true"] .n{color:var(--num)}
+  /* M7.2 «Драг» (макет-раскадровка Сергея): ВЕРТИКАЛЬНАЯ лента превью; драг по Y листает; оригинал выезжает крупным поверх,
+     лента видна по краям (не перекрыта целиком). Совмещённый жест клик+курсор (как M3.2). */
+  .m7vlenta{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;gap:var(--lenta-gap,10px);overflow:hidden;touch-action:none;cursor:grab;container-type:size}
+  .m7vlenta .lchip{flex:none;width:min(30cqw,240px);height:auto;aspect-ratio:3/2;background:var(--copy);opacity:.5;transition:transform .12s,opacity .12s,outline-color .12s}
+  .m7vlenta .lchip .n{color:var(--muted)}
+  .m7vlenta .lchip[aria-current="true"]{outline:2px solid var(--accent);outline-offset:2px;transform:scale(1.12);opacity:1;background:var(--original);z-index:1}
+  .m7vlenta .lchip[aria-current="true"] .n{color:var(--num)}
+  .ctl-line-h{position:absolute;top:50%;left:0;right:0;border-top:1px dashed var(--accent);transform:translateY(-0.5px);z-index:3;pointer-events:none} /* контрольная позиция — горизонтальная линия по центру */
+  .ctl-line-h:before{content:"";position:absolute;top:-4px;left:calc(50% - 3.5px);width:7px;height:7px;background:var(--accent)}
+  .m7vfull{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;z-index:4} /* оригинал поверх, сквозной для событий (драг на ленте) */
+  .m7vfull[hidden]{display:none}
+  .m7vbig{width:min(64cqw,74cqh);aspect-ratio:3/2;display:grid;place-items:center} /* крупный, но не весь экран — лента видна по краям */
+  /* M6 — контрольная позиция по центру: вертикальная пунктирная линия акцентом над лентой (R5 фиксированная метка) */
+  .ctl-line-v{position:absolute;left:50%;bottom:0;height:calc(var(--chip-h,80px) + 24px);border-left:1px dashed var(--accent);transform:translateX(-0.5px);z-index:3;pointer-events:none}
+  .ctl-line-v:before{content:"";position:absolute;left:-4px;top:-7px;width:7px;height:7px;background:var(--accent)}
+  /* фикс чипа 139×80 (макет) — единица навигации; высота — ручка --chip-h, пропорция макетная 139/80 */
+  .lchip{appearance:none;flex:none;width:calc(var(--chip-h,80px)*1.7375);background:var(--copy);border:0;cursor:pointer;padding:0;display:grid;place-items:center}
+  .lchip:hover{outline:1px solid var(--accent);outline-offset:-1px}
+  .lchip[aria-current="true"]{background:var(--original)}
+  .lchip .n{font:700 14px/1 var(--font);color:var(--num)} /* канон номеров: 700/22 #C6CED7 по центру (узел 7:699) */
+  .lchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* M3 · драг: лента-кольцо. Компонент .ctl-zone — носитель управляющей позиции «зона-коридор»:
+     две вертикальные пунктирные линии 7/6 на всю высоту, ширина чуть больше чипа (макет) */
+  .lenta.dragv{overflow:hidden;cursor:grab;touch-action:none}
+  .lenta.dragv .lchip{pointer-events:none}
+  .ctl-zone{position:absolute;top:0;bottom:0;left:50%;width:208px;transform:translateX(-50%);z-index:3;pointer-events:none} /* ширина коридора 208 — из макета */
+  .ctl-zone:before,.ctl-zone:after{content:"";position:absolute;top:0;bottom:0;width:1px;background:repeating-linear-gradient(180deg,var(--accent) 0 7px,transparent 7px 13px)}
+  .ctl-zone:before{left:0}
+  .ctl-zone:after{right:0}
+  .ctl-cap{position:absolute;left:calc(100% + 10px);top:14px;font:600 13px/1 var(--font);color:var(--accent);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .grabbing,.grabbing *{cursor:grabbing!important}
+
+  /* мета-слой: .info-btn (описание) и .knob-btn (ручки) — круглые кнопки поверх сцены, без полосы-подложки.
+     Рифма отступов: центр каждой кнопки на 54px от ближайших краёв экрана (инфо — центр X снизу, ручки — левый угол) */
+  .info-btn{position:fixed;left:50%;bottom:54px;transform:translate(-50%,50%);width:49px;height:49px;border:0;border-radius:50%;background:var(--meta);cursor:pointer;padding:0;z-index:40}
+  .info-btn:hover{background:var(--meta-hover)}
+  .info-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  /* шесть точек 3×3 кольцом вокруг центра — координаты из макета (узел 8:898) */
+  .info-btn i{position:absolute;width:3px;height:3px;border-radius:50%;background:var(--meta-dots)}
+  .info-btn i:nth-child(1){left:23px;top:15px}
+  .info-btn i:nth-child(2){left:31px;top:20px}
+  .info-btn i:nth-child(3){left:31px;top:27px}
+  .info-btn i:nth-child(4){left:23px;top:32px}
+  .info-btn i:nth-child(5){left:15px;top:27px}
+  .info-btn i:nth-child(6){left:15px;top:20px}
+  /* открытое состояние — узел 7:781: круг акцентом, точки тёмные (хендофф Клод-дизайна) */
+  .info-btn[aria-expanded="true"]{background:var(--accent)}
+  .info-btn[aria-expanded="true"] i{background:var(--ink-text)}
+  /* .knob-btn + .knobs — панель ручек (урок стенда M5 «проси ручку, не значение»; просьба Сергея):
+     вкусовые параметры конструкции в контроллеры; рифма мета-кнопок — центр на 54px от краёв (левый нижний угол) */
+  .knob-btn{position:fixed;left:54px;bottom:54px;transform:translate(-50%,50%);width:36px;height:36px;border:0;border-radius:50%;background:var(--meta);color:#fff;font:500 15px/1 var(--font);cursor:pointer;z-index:40}
+  .knob-btn:hover{background:var(--meta-hover)}
+  .knob-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .knob-btn[aria-expanded="true"]{background:var(--accent)}
+  .knobs{position:fixed;left:18px;bottom:96px;z-index:45;background:#fff;border:1px solid var(--num);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;font:500 12px/1.3 var(--font);color:var(--ink-text);width:280px}
+  .knobs[hidden]{display:none}
+  .knob-row{display:flex;align-items:center;gap:8px}
+  .knob-row[hidden]{display:none}
+  .knob-row label{flex:none;width:104px;color:var(--muted)}
+  .knob-row input[type="range"]{flex:1;accent-color:var(--accent);min-width:0}
+  .knob-row .kv{flex:none;width:64px;text-align:right;font-variant-numeric:tabular-nums}
+  .knob-fmt{display:flex;gap:4px;flex-wrap:wrap}
+  .knob-fmt button{appearance:none;border:1px solid var(--num);background:#fff;color:var(--ink-text);font:500 11px/1 var(--font);padding:6px 8px;border-radius:90px;cursor:pointer}
+  .knob-fmt button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+  .knob-reset{align-self:flex-end;appearance:none;border:0;border-radius:90px;background:var(--pill-off);color:#fff;font:500 12px/1 var(--font);padding:8px 12px;cursor:pointer}
+
+  /* компонент .passport — описание модели по макету (узлы 8:947/8:934/8:946/7:809/8:945):
+     без карточки-подложки, текст на побледневшей сцене; две колонки 50/50 с полями 20, старт под пилюлями (63px);
+     левая — «Архитектурная модель» (влево); правая — «Условия» (по центру) + «Доп. информация» (влево), gap 50;
+     типографика едина: Inter 400, 15/20, без жирных — ярлыки часть текста */
+  .passport{position:fixed;left:20px;right:20px;top:63px;bottom:0;overflow:auto;display:flex;justify-content:space-between;align-items:flex-start;gap:20px;z-index:5;font:400 14px/20px var(--font);color:var(--ink-text)} /* поля от окна, не от сцены (макет); кегль 14 (вердикт Сергея) */
+  .passport[hidden]{display:none}
+  .passport-col{width:calc(50% - 10px)}
+  .passport-col.right{display:flex;flex-direction:column;gap:50px}
+  .pp-cond{text-align:center}
+  .passport p{margin:0}
+  .passport .pp-b{margin-bottom:20px} /* воздух между под-блоками — кратен строке */
+  @media (max-width:760px){ /* R18-отклонение объяснено: на узком экране колонки складываются, поля 20 держатся */
+    .passport{flex-direction:column;gap:32px}
+    .passport-col{width:100%}
+  }
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <div class="top">
+    <nav class="switch" aria-label="Модель">
+      <button class="pill" data-model="M1" aria-selected="true">M1</button>
+      <button class="pill" data-model="M2" aria-selected="false">M2</button>
+      <div class="pillwrap">
+        <button class="pill" data-model="M3" aria-selected="false">M3</button>
+        <div class="sublist">
+          <button class="pill-sub" data-model="M3" data-v="cursor" aria-pressed="false">M3.1 · Курсор Y</button>
+          <button class="pill-sub" data-model="M3" data-v="drag" aria-pressed="false">M3.2 · Драг</button>
+        </div>
+      </div>
+      <button class="pill" data-model="M4" aria-selected="false">M4</button>
+      <div class="pillwrap">
+        <button class="pill" data-model="M5" aria-selected="false">M5</button>
+        <div class="sublist">
+          <button class="pill-sub" data-model="M5" data-v="grid" aria-pressed="false">M5.1 · Грид</button>
+          <button class="pill-sub" data-model="M5" data-v="strip" aria-pressed="false">M5.2 · Лента</button>
+        </div>
+      </div>
+      <div class="pillwrap">
+        <button class="pill" data-model="M6" aria-selected="false">M6</button>
+        <div class="sublist">
+          <button class="pill-sub" data-model="M6" data-v="copy" aria-pressed="false">M6.1 · Оригинал+копия</button>
+          <button class="pill-sub" data-model="M6" data-v="one" aria-pressed="false">M6.2 · Один оригинал</button>
+        </div>
+      </div>
+      <div class="pillwrap">
+        <button class="pill" data-model="M7" aria-selected="false">M7</button>
+        <div class="sublist">
+          <button class="pill-sub" data-model="M7" data-v="cursor" aria-pressed="false">M7.1 · Курсор</button>
+          <button class="pill-sub" data-model="M7" data-v="drag" aria-pressed="false">M7.2 · Драг</button>
+        </div>
+      </div>
+      <div class="pillwrap">
+        <button class="pill" data-model="M8" aria-selected="false">M8</button>
+        <div class="sublist">
+          <button class="pill-sub" data-model="M8" data-v="copy" aria-pressed="false">M8.1 · Оригинал+копия</button>
+          <button class="pill-sub" data-model="M8" data-v="one" aria-pressed="false">M8.2 · Один оригинал</button>
+        </div>
+      </div>
+      <div class="pillwrap">
+        <button class="pill" data-model="M9" aria-selected="false">M9</button>
+        <div class="sublist">
+          <button class="pill-sub" data-model="M9" data-v="copy" aria-pressed="false">M9.1 · Оригинал+копия</button>
+          <button class="pill-sub" data-model="M9" data-v="one" aria-pressed="false">M9.2 · Один оригинал</button>
+        </div>
+      </div>
+    </nav>
+  </div>
+  <div class="stage">
+    <div class="screen" id="screen"></div>
+    <div class="passport" id="passport" hidden></div>
+  </div>
+  <button class="info-btn" id="infobtn" aria-label="Описание модели" aria-expanded="false"><i></i><i></i><i></i><i></i><i></i><i></i></button>
+  <button class="knob-btn" id="knobbtn" aria-label="Панель ручек" aria-expanded="false">&#8801;</button>
+  <div class="knobs" id="knobs" hidden>
+    <div class="knob-row" data-scope="grid"><label for="kb-grid">превью грида</label><input type="range" id="kb-grid" min="50" max="320" step="2" value="180"><span class="kv" id="kb-grid-v">системно</span></div>
+    <div class="knob-row" data-scope="lenta"><label for="kb-chip">чип ленты</label><input type="range" id="kb-chip" min="48" max="160" step="2" value="80"><span class="kv" id="kb-chip-v">системно</span></div>
+    <div class="knob-row" data-scope="gapcol"><label for="kb-gcol">межколонник</label><input type="range" id="kb-gcol" min="0" max="150" step="1" value="15"><span class="kv" id="kb-gcol-v">системно</span></div>
+    <div class="knob-row" data-scope="grid"><label for="kb-grow">межстрочный</label><input type="range" id="kb-grow" min="0" max="400" step="1" value="40"><span class="kv" id="kb-grow-v">системно</span></div>
+    <div class="knob-row" data-scope="orig"><label>подача оригинала</label><div class="knob-fmt" id="kb-fmt">
+      <button data-fmt="sys" aria-pressed="true">системно</button><button data-fmt="port" aria-pressed="false">портрет</button><button data-fmt="land" aria-pressed="false">альбом</button><button data-fmt="cover" aria-pressed="false">заливка</button>
+    </div></div>
+    <button class="knob-reset" id="kb-reset">сброс</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var N=50;   // честный объём: 50 копий, в экран не помещаются
+  var N3=50;  // ленты M3 — тоже 50 (вердикт Сергея: объём выравнен со всеми; период кольца за пределами мониторов)
+  /* Паспорт модели: model = инвариант клетки; a1/g1 · a2/g2 = условия (действия + жесты); schema = ветка разделения + конструкция; note — опционально */
+  var M3V={
+    cursor:{label:"Курсор Y",
+        g1:"клик по превью в ленте",
+        g2:"позиция курсора по вертикали: вверх — крупнее",
+        schema:"оригинал/копия (отношения) · лента-кольцо превью + кадр · клик центрирует, Y — степень",
+        fix:"Чип фикс 139×80 (макет) — единица навигации: ширина окна меняет число видимых копий, не размер. На сверхшироких окнах (>~7160px) чип укрупняется ровно настолько, чтобы кольцо не показало дубль копии (период ≥ ширины окна) — гвард. Кадр — от сцены.",
+        note:"лента закольцована — любое превью центрируется одним ходом, краевых исключений нет (R20)"},
+    drag:{label:"Драг",
+        g1:"драг по горизонтали: клик-сцепка в любом месте + ход руки",
+        g2:"драг по вертикали: та же сцепка, ход вверх — крупнее",
+        schema:"оригинал/копия (отношения) · лента-кольцо + коридор управляющей позиции · драг: X — ход, Y — степень",
+        fix:"Чип фикс 139×80 (макет) — единица навигации: окно меняет число видимых копий, не размер. На сверхшироких окнах (>~7160px) чип укрупняется ровно настолько, чтобы кольцо не показало дубль (период ≥ ширины окна) — гвард. Коридор 208 — из макета, чуть шире чипа, чтобы активная копия читалась внутри.",
+        note:"лента закольцована — упоров нет; отпускание рвёт сцепку, значения остаются"}
+  };
+  var M9V={
+    copy:{label:"Оригинал+копия",
+        g1:"позиция курсора по горизонтали — без клика, скролла и зажатия",
+        g2:"позиция курсора по вертикали",
+        schema:"оригинал/копия (отношения) · лента превью + кадр · X = доля ленты, Y = степень",
+        fix:"Фикс: чип 139×80 — единица навигации; маппинг X — пропорция, живёт при любой ширине окна. Кадр — от сцены.",
+        note:"достижимость краёв — из пропорции: активная копия всегда под курсором"},
+    one:{label:"Один оригинал",
+        g1:"позиция курсора по горизонтали — без клика, скролла и зажатия",
+        g2:"позиция курсора по вертикали",
+        schema:"состояния оригинала (время, R17) · лента оригиналов · X = доля ленты, Y = масштаб",
+        fix:"Фикс: мелкое состояние 84px — минимальный читаемый модуль строя (единица навигации); крупное состояние — вся высота сцены, от экрана.",
+        note:"зум вокруг курсорной доли — кадр под курсором стоит на месте при масштабировании"}
+  };
+  var M5V={
+    grid:{label:"Грид",
+        g1:"скролл (колесо/тач) — двигает лонгрид",
+        g2:"ховер: наведение на копию поднимает её оригинал поверх, увод снимает",
+        schema:"оригинал/копия (отношения) · плотный грид-лонгрид · ховер поднимает оригинал поверх сцены (разделение во времени)",
+        fix:"Сетка: модуль = 1/12 сцены, ячейка — целое число модулей, нижняя граница 180px. Строчность: интервал строк больше межколонника в ~2.6 раза. Размер поднятого оригинала — единый с M2 (70% сцены).",
+        note:"центр матрицы: оба жеста интервальные и одновременны — скролл ≠ ховер, каналы разведены (R7). Активная копия — под курсором, пересчитывается на скролле (иначе при неподвижной мыши и едущей ленте ховер не срабатывает). Наведение — по зоне копии (R21), не по самой картинке: активна ближайшая ячейка, межколонник не мёртв"},
+    strip:{label:"Лента",
+        g1:"скролл (колесо/тач) — двигает ленту превью",
+        g2:"ховер: наведение на превью показывает эту копию крупно в зоне оригинала, увод — держит последнюю",
+        schema:"оригинал/копия (отношения) + разделение в пространстве · лента-превью снизу + зона оригинала сверху · ховер обновляет зону",
+        fix:"Лента-филмстрип снизу (чип 139×80, единица навигации); зона оригинала — верх сцены, крупный кадр (R16). У навигации своя территория (лента), у восприятия — своя (зона оригинала): разделение в пространстве, а не поверх (в отличие от M5.1).",
+        note:"айфон-галерея (LVL180): навигация в ленте, восприятие в зоне оригинала; оба жеста интервальные и одновременны (скролл ≠ ховер, R7). Наведение — по зоне копии (R21), не по самой картинке: экран нарезан на колонки по видимым превью, ведёшь курсор по X — картинки сменяются; межколонник не мёртв, мелкую картинку ловить не нужно. Пересчёт на скролле (грабля стенда)"}
+  };
+  var MODELS={
+    M1:{model:"навигация — точка (клик) × восприятие — точка (клик)",
+        g1:"клик по кнопкам вверх/вниз — на строку",
+        g2:"клик по копии — открыть; клик по фото или Esc — закрыть",
+        schema:"оригинал/копия (отношения) · грид-лонгрид 50 с концами · кнопки-строки",
+        fix:"Сетка: модуль = 1/12 сцены, ячейка — целое число модулей, нижняя граница 180px (порог читаемости). Строчность: интервал строк больше межколонника в ~2.6 раза — грид читается строками. Квант хода = строка (ряд + межстрочный интервал), выведен из конструкции; движение видно само (плавный доезд), счётчик не нужен; кнопки на краях дисейблятся (лонгрид с концами, кольца нет). Панель кнопок 76px справа, слева зеркальное пустое поле 76px — грид по центру.",
+        note:"скролл запрещён (LVL180); из оригинала — возврат к той же копии (якорь, не пиксель)"},
+    M2:{model:"навигация — точка (клик) × восприятие — интервал (ховер)",
+        g1:"клик по копии — в центр; клик по кнопкам — на строку",
+        g2:"ховер: наведение поднимает, увод снимает",
+        schema:"оригинал/копия (отношения) · грид-кольцо, бесконечный лонгрид · клик в центр + кнопки-строки",
+        fix:"Сетка: модуль = 1/12 сцены, нижняя граница ячейки 180px; колонки = наибольший делитель 50, при котором ячейка ≥ 180px (макс. плотность при читаемости; кольцу нужны целые строки). Межстрочный — 1.5 системного интервала: растяжка кольца, при нехватке периода дорастягивается. Панель кнопок 76px — территория управления; оригинал — от сцены.",
+        note:"лонгрид зациклен — концов и краевых исключений нет (R20); квант хода = строка (ряд + интервал), выведен из конструкции; скролл запрещён, фиксация кликом убрана"},
+    M3:{model:"навигация — точка (клик) × восприятие — континуум (курсор)"},
+    M4:{model:"навигация — интервал (скролл) × восприятие — точка (клик)",
+        g1:"скролл (колесо/тач)",
+        g2:"клик по копии — открыть; клик по фото или Esc — закрыть",
+        schema:"оригинал/копия (отношения) · плотный грид-лонгрид",
+        fix:"Сетка: модуль = 1/12 сцены, ячейка — целое число модулей, нижняя граница 150px — плотнее M1/M2, копия чисто навигационная (R16). Строчность: интервал строк больше межколонника в ~2.6 раза.",
+        note:"в режиме оригинала скролл нем; выход — в ту же позицию"},
+    M5:{model:"навигация — интервал (скролл) × восприятие — интервал (ховер)"},
+    M6:{model:"навигация — интервал (скролл) × восприятие — континуум (курсор Y)"},
+    M7:{model:"навигация — континуум (курсор X) × восприятие — точка (клик)"},
+    M8:{model:"навигация — континуум (курсор X) × восприятие — интервал (скролл)"},
+    M9:{model:"навигация — континуум (курсор X) × восприятие — континуум (курсор Y)"}
+  };
+  var M7V={
+    cursor:{label:"Курсор",
+        g1:"позиция курсора по горизонтали — ведёт по крупной ленте (доля экрана = доля ленты), лента заметно едет",
+        g2:"клик по активному кадру — оригинал во весь экран; клик по фото или Esc — назад",
+        schema:"оригинал/копия (отношения) · крупная лента-филмстрип · навигация курсором по зонам · клик раскрывает оригинал во весь экран",
+        fix:"Навигация — общий с M9 слой: весь экран — навигационная поверхность, активный кадр под курсором (зоны R21), маппинг даёт края бесплатно. Активный выделен обводкой + лёгкий выступ.",
+        note:"курсор X (позиция) × клик (событие) ортогональны — R7. В режиме оригинала навигация заморожена, выход к той же копии (R13). От M1 — навигация курсором (не кнопки); от M9 — восприятие клик (не курсор Y); от M4 — курсором (не скролл)"},
+    drag:{label:"Драг",
+        g1:"курсор",
+        g2:"клик",
+        schema:"оригинал/копия (отношения) · вертикальная лента превью + оригинал выезжает крупным поверх · 1 жест: клик + курсор = драг",
+        fix:"Совмещённый жест как M3.2 (сцепка pointerdown + позиция курсора). Вертикальная лента-кольцо (R15б) под оригиналом — любой кадр долистывается по Y. Курсор при зажатии — grabbing. Оригинал не перекрывает ленту целиком — превью видны по краям.",
+        note:"1 жест: клик + курсор = драг. pointerdown раскрывает оригинал текущего кадра крупным поверх ленты; hold + движение курсора по Y листает — оригинал сменяется на кадр, к которому ведёшь; отпускание драга закрывает оригинал (драг держит его — отпустил, вернулся к ленте). Клик несёт восприятие (открыть), позиция при холде — навигацию (какой оригинал показан): законная композиция жестов клетки (R5/R7). Драг листает готовые оригиналы по Y (навигация при открытом восприятии-точке), а не тянет степень (континуум). От M7.1 — нажал и листаешь сразу в полном размере (R12)"}
+  };
+  var M6V={
+    copy:{label:"Оригинал+копия",
+        g1:"скролл (колесо) на всём экране — двигает ленту-кольцо по X, копии подъезжают к центру",
+        g2:"позиция курсора по вертикали (в любом месте): вниз — превью, вверх — оригинал во весь экран",
+        schema:"оригинал/копия (отношения) · горизонтальная лента-кольцо · контрольная позиция по центру · курсор Y вытягивает центральную копию",
+        fix:"Лента-кольцо (R15б): любая копия доезжает до центра, краевых исключений нет; чип 139×80 (ручки чип/межколонник ленты). Скролл ловится на всём экране.",
+        note:"континуум восприятия (позиция = значение, R5). Навигация (скролл X) ⊥ восприятие (курсор Y) — R7. От M3 — навигация скроллом; от M5 — восприятие на любую степень; от M9 — ленту двигает скролл, а не X-курсор"},
+    one:{label:"Один оригинал",
+        g1:"скролл (колесо) на всём экране — двигает ленту оригиналов по X, центр — контрольная позиция",
+        g2:"позиция курсора по вертикали: вниз — мелкий строй (навигация), вверх — кадр во весь экран (восприятие)",
+        schema:"состояния оригинала (время, R17) · горизонтальная лента оригиналов · скролл ведёт по X, курсор Y масштабирует всю ленту",
+        fix:"Зум вокруг центра сцены — кадр у центра не уезжает при масштабировании (инвариант, как M9.2). Копий нет — одно воплощение каждого кадра (R17). Лонгрид с концами (кламп), ручка межколонника ленты.",
+        note:"ветка времени (R17): один оригинал проживает состояния мелкий→крупный, трансформация на месте. Отличие от M6.1 — там оригинал/копия (отношения); от M9.2 — там навигацию везёт курсор X, здесь скролл. Навигация (скролл X) ⊥ восприятие (курсор Y) — R7"}
+  };
+  var M8V={
+    copy:{label:"Оригинал+копия",
+        g1:"позиция курсора по горизонтали — ведёт по ленте (доля экрана = доля ленты)",
+        g2:"скролл (колесо) на всём экране — вытягивает копию под курсором из превью в оригинал (лупа), накопление 0→1",
+        schema:"оригинал/копия (отношения) · навигация курсором по зонам · скролл вытягивает активную копию (лупа: курсор выбирает объект, колесо задаёт масштаб)",
+        fix:"Навигация — общий с M9/M7 слой: активная копия под курсором (зоны R21), маппинг даёт края бесплатно. Скролл ловится на всём экране. Чип 139×80 (ручки чип/межколонник ленты).",
+        note:"зеркало M6.1 (там скролл — навигация, курсор — восприятие). Ховер занят навигацией, потому восприятие — на скролле. Курсор X ⊥ колесо — R7. От M9 — восприятие скролл-интервал (не курсор Y); от M5 — навигация курсором"},
+    one:{label:"Один оригинал",
+        g1:"позиция курсора по горизонтали — ведёт по ленте оригиналов (доля экрана = доля ленты)",
+        g2:"скролл (колесо) на всём экране — масштабирует всю ленту, накопление 0→1: вниз строй, вверх кадр во весь экран",
+        schema:"состояния оригинала (время, R17) · горизонтальная лента оригиналов · курсор X ведёт по X, скролл масштабирует всю ленту",
+        fix:"Зум вокруг кадра под курсором — не уезжает при масштабировании (инвариант, как M9.2). Копий нет — одно воплощение кадра (R17). Маппинг даёт края бесплатно; ручка межколонника ленты.",
+        note:"ветка времени (R17): один оригинал проживает состояния. Отличие от M8.1 — там оригинал/копия; от M9.2 — там восприятие везёт курсор Y, здесь скролл. Курсор X (навигация) ⊥ колесо (восприятие) — R7"}
+  };
+
+  var state={model:"M1",view:"grid",current:0,open:null,anchor1:0,m1pos:0,anchor2:0,m4anchor:0,m5anchor:0,m6anchor:0,m78x:0,t:0,r9:0,m3v:"cursor",m5v:"grid",m6v:"copy",m7v:"cursor",m8v:"copy",m9v:"copy",grabbing:false,info:false};
+  var screen=document.getElementById("screen"),
+      infopanel=document.getElementById("passport"),infobtn=document.getElementById("infobtn"),
+      pills=[].slice.call(document.querySelectorAll(".pill[data-model]")),
+      subpills=[].slice.call(document.querySelectorAll(".pill-sub"));
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function pad(n){return (n<10?"0":"")+n;}
+  function reducedMotion(){ return window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches; }
+  /* Плавный доезд прыжка (rAF, easeOutCubic): видно движение, а не только смену цифр (вердикт Сергея).
+     Ось top/left; повторные вызовы прерывают текущую анимацию и ведут к новому таргету; при reduced-motion — мгновенно.
+     el._anim — флаг «в полёте» (кольцо M2 не телепортирует в полёте, нормализация — в done). */
+  function animateScroll(el,target,opt){
+    opt=opt||{}; var prop=opt.axis==="left"?"scrollLeft":"scrollTop", dur=opt.dur||280, done=opt.done;
+    if(el._animRAF){ cancelAnimationFrame(el._animRAF); el._animRAF=null; }
+    target=Math.round(target);
+    var start=el[prop], delta=target-start;
+    if(reducedMotion()||dur<=0||delta===0){ el[prop]=target; el._anim=false; if(done)done(); return; }
+    el._anim=true; var t0=null;
+    function step(ts){ if(t0==null)t0=ts; var p=Math.min(1,(ts-t0)/dur);
+      el[prop]=start+delta*(1-Math.pow(1-p,3));
+      if(p<1){ el._animRAF=requestAnimationFrame(step); }
+      else { el._animRAF=null; el._anim=false; el[prop]=target; if(done)done(); } }
+    el._animRAF=requestAnimationFrame(step);
+  }
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+
+  pills.forEach(function(b){b.addEventListener("click",function(){setModel(b.dataset.model);});});
+  subpills.forEach(function(b){
+    b.addEventListener("click",function(){
+      if(b.dataset.model==="M3") state.m3v=b.dataset.v;
+      else if(b.dataset.model==="M5") state.m5v=b.dataset.v;
+      else if(b.dataset.model==="M6") state.m6v=b.dataset.v;
+      else if(b.dataset.model==="M7") state.m7v=b.dataset.v;
+      else if(b.dataset.model==="M8") state.m8v=b.dataset.v;
+      else state.m9v=b.dataset.v;
+      setModel(b.dataset.model);
+    });
+  });
+  function subvarOf(m){ return m==="M3"?state.m3v : m==="M5"?state.m5v : m==="M6"?state.m6v : m==="M7"?state.m7v : m==="M8"?state.m8v : m==="M9"?state.m9v : null; }
+  function syncPills(){
+    pills.forEach(function(p){ p.setAttribute("aria-selected",p.dataset.model===state.model?"true":"false"); });
+    subpills.forEach(function(s){
+      var act = s.dataset.model===state.model && s.dataset.v===subvarOf(s.dataset.model);
+      s.setAttribute("aria-pressed",act?"true":"false");
+    });
+  }
+
+  function setModel(m){
+    if(!MODELS[m])return;
+    state.model=m; state.open=null; state.t=0; state.r9=0; state.anchor1=0; state.m1pos=0; state.anchor2=0; state.m4anchor=0; state.m5anchor=0; state.m6anchor=0; state.m78x=0; state.current=0;
+    state.grabbing=false; screen.classList.remove("grabbing");
+    state.view = m==="M1"?"grid" : m==="M2"?"grid2" : m==="M4"?"lenta4" : m==="M5"?"m5" : m==="M6"?"m6" : m==="M7"?"m7" : m==="M8"?"m8" : m==="M9"?"m9" : "lenta";
+    render();
+  }
+
+  /* описание модели по требованию (инфо-кнопка); раскладка и формулировки — по макету Figma (узлы 8:947 и вложенные):
+     левая колонка — архитектурная модель (влево), правая — условия (по центру) + доп. информация (влево) */
+  function activeV(){ return state.model==="M3" ? M3V[state.m3v] : state.model==="M5" ? M5V[state.m5v] : state.model==="M6" ? M6V[state.m6v] : state.model==="M7" ? M7V[state.m7v] : state.model==="M8" ? M8V[state.m8v] : state.model==="M9" ? M9V[state.m9v] : MODELS[state.model]; }
+  function buildInfo(){
+    var V=activeV();
+    var left='<div class="passport-col">'
+      +'<p class="pp-b">Архитектурная модель: (описание)</p>'
+      +'<p class="pp-b">'+esc(V.schema)+'</p>'
+      +(V.fix?'<p>'+esc(V.fix)+'</p>':'') // R18: каждый оставленный фикс объяснён в этом блоке
+      +'</div>';
+    var cond='<div class="pp-cond">'
+      +'<p class="pp-b">Модель взаимодействия:<br>(условия)</p>' // двумя строками, как в узле 7:809
+      +'<p>A1 (action 1) – перемещение по галерее</p>'
+      +'<p>это способ перехода от одного объекта к другому</p>'
+      +'<p class="pp-b">'+esc(V.g1)+'</p>' // жест голым словом, без маркера (узел 7:809)
+      +'<p>A2 (action 2) – переключение режимов фото/галерея</p>'
+      +'<p>это способ изменения масштаба фотографии для удобства просмотра</p>'
+      +'<p>'+esc(V.g2)+'</p>'
+      +'</div>';
+    var extra=V.note?'<div class="pp-extra"><p class="pp-b">Дополнительная информация:</p><p>'+esc(V.note)+'</p></div>':'';
+    return left+'<div class="passport-col right">'+cond+extra+'</div>';
+  }
+  function infoSync(){
+    infopanel.hidden=!state.info;
+    screen.classList.toggle("dim",state.info);
+    infobtn.setAttribute("aria-expanded",state.info?"true":"false");
+    if(state.info) infopanel.innerHTML=buildInfo();
+  }
+  infobtn.addEventListener("click",function(){ state.info=!state.info; infoSync(); });
+
+  /* Панель ручек — вкусовые параметры конструкции поверх токенов (урок M5 «проси ручку, не значение», просьба Сергея).
+     null = системное значение; настройки сессионные, в localStorage не пишутся (см. отчёт) */
+  var knob={grid:null,chip:null,gcol:null,grow:null,fmt:"sys"};
+  var knobbtn=document.getElementById("knobbtn"), knobs=document.getElementById("knobs");
+  function applyKnobs(){
+    var st=document.querySelector(".stage").style;
+    function set(name,v){ if(v!=null) st.setProperty(name,v+"px"); else st.removeProperty(name); }
+    set("--gap-col",knob.gcol); set("--lenta-gap",knob.gcol); set("--one-gap",knob.gcol);
+    set("--gap-row",knob.grow);
+    set("--chip-h",knob.chip);
+    document.body.setAttribute("data-fmt",knob.fmt==="sys"?"":knob.fmt);
+  }
+  function knobLabel(id,v,unit){ document.getElementById(id).textContent = v==null ? "системно" : v+(unit||"px"); }
+  function bindKnob(input,key,label){
+    document.getElementById(input).addEventListener("input",function(){
+      knob[key]=+this.value; knobLabel(label,knob[key]);
+      applyKnobs(); render(); // пересчёт конструкции как при resize
+    });
+  }
+  bindKnob("kb-grid","grid","kb-grid-v");
+  bindKnob("kb-chip","chip","kb-chip-v");
+  bindKnob("kb-gcol","gcol","kb-gcol-v");
+  bindKnob("kb-grow","grow","kb-grow-v");
+  [].forEach.call(document.querySelectorAll("#kb-fmt button"),function(b){
+    b.addEventListener("click",function(){
+      knob.fmt=b.dataset.fmt;
+      [].forEach.call(document.querySelectorAll("#kb-fmt button"),function(x){ x.setAttribute("aria-pressed",x===b?"true":"false"); });
+      applyKnobs(); render();
+    });
+  });
+  document.getElementById("kb-reset").addEventListener("click",function(){
+    knob={grid:null,chip:null,gcol:null,grow:null,fmt:"sys"};
+    document.getElementById("kb-grid").value=180; document.getElementById("kb-chip").value=80;
+    document.getElementById("kb-gcol").value=15;  document.getElementById("kb-grow").value=40;
+    knobLabel("kb-grid-v",null); knobLabel("kb-chip-v",null); knobLabel("kb-gcol-v",null); knobLabel("kb-grow-v",null);
+    [].forEach.call(document.querySelectorAll("#kb-fmt button"),function(x){ x.setAttribute("aria-pressed",x.dataset.fmt==="sys"?"true":"false"); });
+    applyKnobs(); render();
+  });
+  knobbtn.addEventListener("click",function(){
+    knobs.hidden=!knobs.hidden;
+    knobbtn.setAttribute("aria-expanded",knobs.hidden?"false":"true");
+  });
+  function isOneStrip(){ // ветка «один оригинал» (лента оригиналов) — M6.2/M8.2/M9.2
+    return (state.model==="M9"&&state.m9v==="one")||(state.model==="M6"&&state.m6v==="one")||(state.model==="M8"&&state.m8v==="one");
+  }
+  function syncKnobScopes(){ // неприменимые ручки/значения на модели скрываются, не показываются мёртвыми
+    var scopes;
+    if(isOneStrip()) scopes={gapcol:1,orig:1};                                          // лента оригиналов — межколонник + подача
+    else if(state.model==="M5"&&state.m5v==="strip") scopes={lenta:1,gapcol:1,orig:1};  // M5.2 — лента
+    else if(state.model==="M3"||state.model==="M6"||state.model==="M7"||state.model==="M8"||state.model==="M9") scopes={lenta:1,gapcol:1,orig:1};
+    else scopes={grid:1,gapcol:1,orig:1}; // M1/M2/M4/M5.1 — гриды
+    [].forEach.call(knobs.querySelectorAll(".knob-row"),function(r){ r.hidden=!scopes[r.getAttribute("data-scope")]; });
+    // «заливка»: на M1/M4 совпадает с системной подачей (дубль), в лентах оригиналов неприменима — прячем
+    var cover=document.querySelector('#kb-fmt button[data-fmt="cover"]');
+    if(cover) cover.hidden = state.model==="M1"||state.model==="M4"||isOneStrip();
+  }
+
+  function render(){
+    syncPills(); infoSync(); syncKnobScopes();
+    screen.style.removeProperty("--chip-h"); // гвард кольца ставит свою; вне M3 действует ручка/системное
+    document.getElementById("kb-chip").min="48";
+    if(state.view==="grid") renderGrid();
+    else if(state.view==="photo") renderPhoto();
+    else if(state.view==="grid2") renderGrid2();
+    else if(state.view==="lenta4") renderLenta4();
+    else if(state.view==="m5") renderM5();
+    else if(state.view==="m6") renderM6();
+    else if(state.view==="m7") renderM7();
+    else if(state.view==="m8") renderM8();
+    else if(state.view==="m9") renderM9();
+    else renderLenta();
+  }
+
+  function copies(){ // плашка с номером по центру (макет 7:699)
+    var h='';
+    for(var i=0;i<N;i++) h+='<button class="thumb" data-i="'+i+'" aria-label="Фото '+(i+1)+'"><span class="n">'+pad(i+1)+'</span></button>';
+    return h;
+  }
+
+  /* Модульная сетка: модуль = 1/12 сцены; ячейка = k модулей (k минимально при ширине ≥ порога читаемости);
+     число колонок = сколько k-модульных ячеек помещается в грид-поле */
+  function gridCols(wrap,threshold){
+    // СИСТЕМНО (ручка не тронута): модульная сетка benmingo — ячейка = целое число модулей 1/12, порог читаемости модели.
+    // РУЧКА «превью грида» (вкусовой параметр Сергея): прямой размер превью в px, вплоть до 50 — модульный пол снят,
+    // колонок ровно столько, сколько влезает превью этого размера (на широком окне 50px → много мелких колонок).
+    var n;
+    if(knob.grid!=null){
+      n=clamp(Math.floor(wrap.clientWidth/Math.max(20,knob.grid)),1,N);
+    } else {
+      var modW=screen.clientWidth/12, k=Math.max(1,Math.ceil(threshold/modW));
+      n=Math.max(1,Math.floor(wrap.clientWidth/(k*modW)));
+    }
+    var g=wrap.querySelector(".grid");
+    if(g) g.style.gridTemplateColumns="repeat("+n+",1fr)";
+    return n;
+  }
+
+  /* Разметка кнопочной панели клик-столбца (кнопки + счётчик строк) */
+  var pgnavHtml='<div class="pgnav"><button class="pgbtn" id="pgup" aria-label="Строка вверх">↑</button><button class="pgbtn" id="pgdn" aria-label="Строка вниз">↓</button></div>';
+
+  /* M1 (вердикт Сергея) — лонгрид С КОНЦАМИ (кольца нет). Навигация только кнопками, скролла нет, потому позиция
+     ДИСКРЕТНА: authoritative-состояние — индекс стопа state.m1pos (0…ceil(max/rowStep)). Последний стоп = max
+     (частичный доезд — законный край трассы с концами). Счётчик и дисейбл кнопок читаются из m1pos → на крае
+     согласованы (гашёная ↓ ⟺ счётчик на максимуме). Якорь ресайза — от m1pos (верхняя копия = m1pos·C), не из пикселей. */
+  function renderGrid(){
+    screen.innerHTML='<div class="gridwrap noscroll" id="pgwrap"><div class="grid">'+copies()+'</div></div>'+pgnavHtml;
+    var wrap=document.getElementById("pgwrap"), grid=wrap.querySelector(".grid");
+    var C=gridCols(wrap,180); // порог читаемости копии — нижняя граница ячейки (R18)
+    var rowStep=grid.children[C]?grid.children[C].offsetTop-grid.children[0].offsetTop:grid.children[0].offsetHeight; // квант = строка
+    var max=Math.max(0,wrap.scrollHeight-wrap.clientHeight);
+    var lastStop=Math.ceil(max/rowStep), totalStops=lastStop+1; // стопы 0…lastStop, последний = max
+    // resize мог сменить C: топ-копия остаётся у верха → пересчёт m1pos от её индекса
+    var topCopy=(state.anchor1||0);
+    state.m1pos=clamp(Math.floor(topCopy/C),0,totalStops-1);
+    function place(){ wrap.scrollTop=Math.min(state.m1pos*rowStep,max); state.anchor1=state.m1pos*C; sync(); }
+    function sync(){ // счётчик убран (движение видно само, вердикт Сергея); край читается по дисейблу кнопок
+      document.getElementById("pgup").disabled = state.m1pos<=0;
+      document.getElementById("pgdn").disabled = state.m1pos>=totalStops-1;
+    }
+    function jump(dir){ // прыжок на стоп: счётчик/дисейбл сразу по m1pos, лонгрид плавно доезжает (видно движение)
+      state.m1pos=clamp(state.m1pos+dir,0,totalStops-1); state.anchor1=state.m1pos*C; sync();
+      animateScroll(wrap,Math.min(state.m1pos*rowStep,max),{dur:280});
+    }
+    document.getElementById("pgup").addEventListener("click",function(){jump(-1);});
+    document.getElementById("pgdn").addEventListener("click",function(){jump(1);});
+    place(); // восстановить стоп: та же верхняя копия (R13), из m1pos, не из пикселей
+    [].forEach.call(wrap.querySelectorAll(".thumb"),function(t){
+      t.addEventListener("click",function(){ state.current=+t.dataset.i; state.view="photo"; render(); });
+    });
+  }
+  function renderPhoto(){
+    screen.innerHTML='<div class="photofull" id="photo"><div class="photo-frame orangefill"><span class="idx">'+pad(state.current+1)+'</span></div></div>';
+    document.getElementById("photo").addEventListener("click",function(){ state.view="grid"; render(); });
+  }
+
+  /* M2 (вердикт Сергея, вечер) — зацикленный бесконечный грид-лонгрид: вертикальное кольцо (3 копии + телепорт).
+     Все клики навигационные: кнопки листают ровно на строку (квант выведен из конструкции: ряд + межстрочный
+     интервал; «экран» был цифрой с потолка), клик по копии центрирует её по кольцу — краевых исключений нет (R20).
+     Восприятие целиком на ховере. Счётчик умер вместе с квантом «экран»: в кольце нет порядкового места,
+     «где я» во взаимодействии не участвует (R19), объём живёт в паспорте. Кнопки не дисейблятся — концов нет. */
+  function renderGrid2(){
+    var cells='';
+    for(var rp=0;rp<3;rp++) for(var k=0;k<N;k++) cells+='<button class="thumb" data-i="'+k+'" tabindex="-1" aria-label="Фото '+(k+1)+'"><span class="n">'+pad(k+1)+'</span></button>';
+    screen.innerHTML='<div class="gridwrap noscroll m2ring" id="pgwrap"><div class="grid">'+cells+'</div></div>'
+      +'<div class="pgnav"><button class="pgbtn" id="pgup" aria-label="Строка вверх">↑</button><button class="pgbtn" id="pgdn" aria-label="Строка вниз">↓</button></div>'
+      +'<div class="origlayer" id="origlayer" hidden><div class="origbig orangefill"><span class="idx" id="origidx"></span></div></div>';
+    var wrap=document.getElementById("pgwrap"), layer=document.getElementById("origlayer"), grid=wrap.querySelector(".grid");
+    // колонки = НАИБОЛЬШИЙ делитель 50, при котором ширина ячейки ≥ порога (макс. плотность R16 при R18);
+    // порог = ручка «превью грида», если тронута (может уйти ниже 180 по воле Сергея), иначе дефолт 180; целые строки — кольцу
+    var Wc=wrap.clientWidth, gc=parseFloat(getComputedStyle(grid).columnGap)||0;
+    var thr=(knob.grid!=null?Math.max(20,knob.grid):180);
+    var divs=[50,25,10,5,2,1], C=1, d;
+    for(d=0;d<divs.length;d++){ var cc=divs[d]; if((Wc-(cc-1)*gc)/cc>=thr){ C=cc; break; } }
+    grid.style.gridTemplateColumns="repeat("+C+",1fr)";
+    // период кольца; гвард дублей: если период < окна + строки — межстрочный дорастягивается (из вердикта «растяни»)
+    var Pv=grid.children[N].offsetTop-grid.children[0].offsetTop;
+    var rowH=grid.children[0].offsetHeight, H=wrap.clientHeight, R=N/C;
+    if(Pv<H+rowH){
+      var extra=Math.ceil((H+rowH-Pv)/R), cur=parseFloat(getComputedStyle(grid).rowGap)||0;
+      grid.style.rowGap=(cur+extra)+"px";
+      Pv=grid.children[N].offsetTop-grid.children[0].offsetTop;
+    }
+    var rowStep=grid.children[C].offsetTop-grid.children[0].offsetTop; // квант хода = строка (ряд + интервал)
+    function normalize(){ // телепорт в среднюю копию — мгновенный, невидимый; зовётся перед ходом, не во время анимации
+      var sc=wrap.scrollTop;
+      while(sc<Pv*0.5) sc+=Pv;
+      while(sc>Pv*1.5) sc-=Pv;
+      if(sc!==wrap.scrollTop) wrap.scrollTop=sc;
+      return sc;
+    }
+    // восстановление по ЯКОРНОЙ КОПИИ (индекс у верха), не по пикселю: средний экземпляр якоря — к верху окна (R13/R18)
+    var midAnchor=grid.children[N+(state.anchor2||0)];
+    wrap.scrollTop = midAnchor ? midAnchor.offsetTop : Pv;
+    normalize();
+    function saveAnchor(){ // копия у верха окна: экземпляр из средней трети, чей offsetTop ближе к scrollTop
+      var ref=wrap.scrollTop, best=0, bd=Infinity, i;
+      for(i=0;i<N;i++){ var el=grid.children[N+i], dd=Math.abs(el.offsetTop-ref); if(dd<bd){bd=dd;best=i;} }
+      state.anchor2=best;
+    }
+    wrap.addEventListener("scroll",function(){ if(!wrap._anim) saveAnchor(); },{passive:true}); // в полёте якорь не пишем
+    saveAnchor();
+    // прыжок на строку: телепорт в среднюю треть ДО анимации (невидим), плавный доезд, нормализация ПОСЛЕ (телепорт ±период
+    // по идентичной копии кольца — невидим). Флаг wrap._anim держит scroll-хендлер от записи якоря в полёте.
+    function jump(dir){ var sc=normalize(); animateScroll(wrap,sc+dir*rowStep,{dur:280,done:function(){ normalize(); saveAnchor(); }}); }
+    document.getElementById("pgup").addEventListener("click",function(){jump(-1);});
+    document.getElementById("pgdn").addEventListener("click",function(){jump(1);});
+    function centerOn(el){ // центрирование по кольцу кратчайшей дугой (как M3.1), тем же плавным хелпером
+      var sc=normalize();
+      var t0=el.offsetTop-(H-el.offsetHeight)/2, best=t0, cand=[t0-Pv,t0+Pv], j;
+      for(j=0;j<2;j++) if(Math.abs(cand[j]-sc)<Math.abs(best-sc)) best=cand[j];
+      animateScroll(wrap,best,{dur:280,done:function(){ normalize(); saveAnchor(); }});
+    }
+    function show(i){ document.getElementById("origidx").textContent=pad(i+1); layer.hidden=false; }
+    function hide(){ layer.hidden=true; }
+    [].forEach.call(wrap.querySelectorAll(".thumb"),function(t){
+      var i=+t.dataset.i;
+      t.addEventListener("mouseenter",function(){ show(i); });
+      t.addEventListener("mouseleave",function(){ hide(); });
+      t.addEventListener("click",function(){ centerOn(t); }); // навигация-точка: точка клика — в центр экрана
+    });
+  }
+
+  /* M4 (третья редакция, после R19) — навигация: непрерывный скролл по плотному грид-лонгриду (интервал);
+     восприятие: клик (точка) = радикальный скачок масштаба копия→оригинал.
+     По R19 удалены линия-центр, «текущая» копия, счётчик и ракорд: активность здесь создаёт только клик,
+     позиция не жест и ничем не управляет; «где я» показывают само движение контента и полоса прокрутки */
+  function renderLenta4(){
+    // режим оригинала переживает render (resize/ручки) — как view="photo" в M1: единая логика моделей рода (R13/R20)
+    screen.innerHTML=
+      '<div class="gridwrap m4" id="m4wrap"><div class="grid">'+copies()+'</div></div>'
+      +'<div class="photofull l4full" id="l4full"'+(state.open!==null?'':' hidden')+'><div class="photo-frame orangefill"><span class="idx" id="l4idx">'+(state.open!==null?pad(state.open+1):'')+'</span></div></div>';
+    var wrap=document.getElementById("m4wrap"), full=document.getElementById("l4full"), grid=wrap.querySelector(".grid");
+    gridCols(wrap,150); // копия чисто навигационная — порог ýже, плотность выше (R16)
+    // позиция трассы переживает resize/оригинал как ЯКОРНАЯ КОПИЯ (индекс у верха), не пиксель (R13/R18)
+    var aEl=grid.children[state.m4anchor||0]; wrap.scrollTop = aEl ? aEl.offsetTop : 0;
+    wrap.addEventListener("scroll",function(){
+      var ref=wrap.scrollTop, best=0, bd=Infinity;
+      [].forEach.call(grid.children,function(el){ var dd=Math.abs(el.offsetTop-ref); if(dd<bd){bd=dd;best=+el.dataset.i;} });
+      state.m4anchor=best;
+    },{passive:true});
+    [].forEach.call(wrap.querySelectorAll(".thumb"),function(t){
+      t.addEventListener("click",function(){ // точка: мгновенный обмен, компактная копия → оригинал во весь экран (R16)
+        state.open=+t.dataset.i;
+        document.getElementById("l4idx").textContent=pad(state.open+1);
+        full.hidden=false;
+      });
+    });
+    // оверлей не листается и не даёт листать лонгрид: скролл нем до выхода, позиция сохранена (R13)
+    full.addEventListener("click",function(){ state.open=null; full.hidden=true; });
+  }
+
+  /* M5 (центр матрицы) — навигация: скролл по плотному грид-лонгриду (интервал, как M4);
+     восприятие: ховер поднимает оригинал поверх сцены (интервал, как M2). Оба жеста интервальные и ОДНОВРЕМЕННЫ,
+     разведены по каналам (скролл ≠ ховер, R7). Ни одного клика: клик-раскрытие M4 и клик-навигация M2 запрещены.
+     Отличия видимы (R12): от M4 — восприятие ховер-подъём, не режим-оригинал с Esc; от M2 — навигация скролл, не кольцо/кнопки/счётчик. */
+  function renderM5(){ if(state.m5v==="strip") return renderM5strip(); return renderM5grid(); }
+
+  /* M5.1 «Грид» — плотный грид-лонгрид + ховер-оверлей оригинала (разделение во времени: оригинал всплывает поверх) */
+  function renderM5grid(){
+    screen.innerHTML=
+      '<div class="gridwrap m4" id="m5wrap"><div class="grid">'+copies()+'</div></div>'
+      +'<div class="origlayer" id="origlayer" hidden><div class="origbig orangefill"><span class="idx" id="origidx"></span></div></div>';
+    var wrap=document.getElementById("m5wrap"), layer=document.getElementById("origlayer"), grid=wrap.querySelector(".grid");
+    gridCols(wrap,180); // плотный грид-лонгрид, порог читаемости 180px
+    var tiles=[].slice.call(grid.children);
+    var aEl=tiles[state.m5anchor||0]; wrap.scrollTop = aEl ? aEl.offsetTop : 0; // позиция трассы — якорная копия (R13/R18)
+    var lastX=null,lastY=null;
+    function recompute(){ // R21: активна БЛИЖАЙШАЯ по центру ячейка-зона (2D), а не прямое попадание в .thumb —
+      if(lastX==null){ layer.hidden=true; return; }        // межколонник принадлежит соседней зоне, оригинал в gap не мигает
+      var best=-1, bd=Infinity;
+      for(var j=0;j<tiles.length;j++){ var r=tiles[j].getBoundingClientRect();
+        var dx=(r.left+r.right)/2-lastX, dy=(r.top+r.bottom)/2-lastY, d=dx*dx+dy*dy;
+        if(d<bd){ bd=d; best=+tiles[j].dataset.i; } }
+      if(best>=0){ state.current=best; document.getElementById("origidx").textContent=pad(best+1); layer.hidden=false; }
+      else layer.hidden=true;
+    }
+    wrap.addEventListener("mousemove",function(e){ lastX=e.clientX; lastY=e.clientY; recompute(); }); // восприятие: ховор
+    wrap.addEventListener("mouseleave",function(){ lastX=lastY=null; layer.hidden=true; });
+    wrap.addEventListener("scroll",function(){ // навигация: скролл; активная копия пересчитывается под неподвижным курсором
+      var ref=wrap.scrollTop, best=0, bd=Infinity;
+      [].forEach.call(grid.children,function(el){ var dd=Math.abs(el.offsetTop-ref); if(dd<bd){bd=dd;best=+el.dataset.i;} });
+      state.m5anchor=best; // «где я» = движение + полоса прокрутки (как M4); якорь переживает resize
+      recompute();
+    },{passive:true});
+  }
+
+  /* M5.2 «Лента» — айфон-галерея (LVL180): навигация = скролл ленты-филмстрипа снизу (X, честный объём 50);
+     восприятие = зональное (R21): экран нарезан на вертикальные колонки по видимым превью, одна колонка = одно превью,
+     наведение в любую точку колонки (по всей высоте, включая зону оригинала) показывает эту копию крупно сверху.
+     Разделение в пространстве: у навигации своя территория (лента), у восприятия — своя (зона) — R7 без конфликта. */
+  function renderM5strip(){
+    var s='';
+    for(var i=0;i<N;i++) s+='<button class="lchip" data-i="'+i+'" tabindex="-1" aria-label="Фото '+(i+1)+'"><span class="n">'+pad(i+1)+'</span></button>';
+    screen.innerHTML=
+      '<div class="m5strip" id="m5strip">'
+      +'<div class="m5orig" id="m5orig"><div class="origbig orangefill"><span class="idx" id="m5idx">'+pad(state.current+1)+'</span></div></div>'
+      +'<div class="m5film" id="m5film">'+s+'</div>'
+      +'</div>';
+    var strip=document.getElementById("m5strip"), film=document.getElementById("m5film");
+    var chips=[].slice.call(film.children);
+    var aEl=chips[state.m5anchor||0]; film.scrollLeft = aEl ? aEl.offsetLeft : 0; // позиция ленты — якорная копия (R13/R18)
+    function mark(){ chips.forEach(function(c){ c.setAttribute("aria-current",(+c.dataset.i===state.current)?"true":"false"); }); } // подсветка активного превью
+    var lastX=null;
+    function recompute(){ // R21: активна копия, в чью X-колонку попал курсор = ближайшая по X-центру среди ВИДИМЫХ в ленте.
+      if(lastX==null) return;                                  // колонки тайлят ширину без пустот (граница = середина между центрами)
+      var fr=film.getBoundingClientRect(), best=state.current, bd=Infinity;
+      chips.forEach(function(c){ var r=c.getBoundingClientRect();
+        if(r.right<=fr.left || r.left>=fr.right) return;       // только стоящие в колонках (видимые), межколонник — соседней зоне
+        var d=Math.abs((r.left+r.right)/2-lastX);
+        if(d<bd){ bd=d; best=+c.dataset.i; } });
+      if(best!==state.current){ state.current=best; document.getElementById("m5idx").textContent=pad(best+1); mark(); }
+    }
+    function saveAnchor(){ var ref=film.scrollLeft, best=0, bd=Infinity; // «где я» = копия у левого края ленты (переживает resize)
+      chips.forEach(function(el){ var dd=Math.abs(el.offsetLeft-ref); if(dd<bd){bd=dd;best=+el.dataset.i;} });
+      state.m5anchor=best; }
+    strip.addEventListener("mousemove",function(e){ lastX=e.clientX; recompute(); }); // ведёшь курсор по X — картинки сменяются
+    // навигация действует на всём экране → и скролл ловим на всём .m5strip (не только на полосе): колесо двигает ленту по X
+    strip.addEventListener("wheel",function(e){
+      e.preventDefault();
+      var d=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY; // вертикальное колесо тоже листает ленту
+      film.scrollLeft=clamp(film.scrollLeft+d,0,film.scrollWidth-film.clientWidth);
+      saveAnchor(); recompute(); // пересчёт активной зоны под неподвижным курсором (грабля стенда)
+    },{passive:false});
+    film.addEventListener("scroll",function(){ saveAnchor(); recompute(); },{passive:true}); // скролл ленты (тач/скроллбар) — тоже пересчёт
+    mark();
+  }
+
+  /* M6 — навигация: скролл (колесо на всём экране) двигает горизонтальную ленту-кольцо по X; активная копия — под
+     контрольной позицией по центру. Восприятие: курсор Y (континуум) вытягивает центральную копию из превью в оригинал.
+     Оси ортогональны (скролл X ⊥ курсор Y) — R7. Достижимость — кольцо (R15б): любая копия доезжает до центра с двух сторон. */
+  var m6bound=false;
+  function m6center(){ // активная копия = чей центр ближе к центру ленты (контрольная позиция); + якорь и подсветка
+    var lenta=document.getElementById("m6lenta"); if(!lenta) return;
+    var lr=lenta.getBoundingClientRect(), cx=lr.left+lr.width/2, best=state.current, bd=Infinity;
+    [].forEach.call(lenta.querySelectorAll(".lchip"),function(c){ var r=c.getBoundingClientRect(), d=Math.abs((r.left+r.right)/2-cx); if(d<bd){bd=d;best=+c.dataset.i;} });
+    if(best!==state.current){
+      state.current=best; state.m6anchor=best;
+      var mn=document.getElementById("mnum"); if(mn) mn.textContent=pad(best+1);
+      [].forEach.call(lenta.querySelectorAll(".lchip"),function(c){ c.setAttribute("aria-current",(+c.dataset.i===state.current)?"true":"false"); });
+    }
+  }
+  function m6move(e){ if(state.model!=="M6") return; // восприятие: позиция курсора по вертикали (в любом месте) = степень
+    var sr=screen.getBoundingClientRect();
+    state.t=clamp(1-(e.clientY-sr.top)/sr.height,0,1);
+    if(state.m6v==="one") oneApply(false); else applyMorph(); // M6.2 масштабирует ленту (центр-инвариант); M6.1 морф центральной копии
+  }
+  function m6wheel(e){ if(state.model!=="M6") return; // навигация: колесо на всём экране двигает ленту по X
+    e.preventDefault();
+    var d=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;
+    if(state.m6v==="one"){ state.r9=clamp(state.r9+d*0.0004,0,1); oneApply(false); return; } // M6.2: скролл → доля ленты, центр фиксирован
+    var lenta=document.getElementById("m6lenta"); if(!lenta) return;               // M6.1: скролл двигает кольцо превью
+    var period=lenta.children[N].offsetLeft-lenta.children[0].offsetLeft;
+    var x=lenta.scrollLeft+d;
+    while(x<period*0.5) x+=period; while(x>period*1.5) x-=period; // кольцо: невидимый телепорт в среднюю треть
+    lenta.scrollLeft=x; m6center(); // активная пересчитывается под неподвижным курсором
+  }
+  function renderM6(){ if(state.m6v==="one") return renderM6one(); return renderM6copy(); }
+  function renderM6copy(){ // M6.1 — оригинал/копия: лента-кольцо превью + морф центральной копии (континуум курсор Y)
+    var s='';
+    for(var rp=0;rp<3;rp++) for(var k=0;k<N;k++) s+='<button class="lchip" data-i="'+k+'" '+(k===state.current?'aria-current="true"':'')+' tabindex="-1"><span class="n">'+pad(k+1)+'</span></button>';
+    screen.innerHTML=
+      '<div class="m3stage" id="m3stage" style="cursor:ns-resize"><div class="morph orangefill" id="morph"><span class="idx" id="mnum">'+pad(state.current+1)+'</span></div></div>'
+      +'<div class="lenta ring" id="m6lenta">'+s+'</div>'
+      +'<div class="ctl-line-v" aria-hidden="true"></div>';
+    var lenta=document.getElementById("m6lenta");
+    var chip=lenta.children[N+(state.m6anchor||0)]; // старт: якорная копия у центра (переживает resize, R13/R18)
+    if(chip) lenta.scrollLeft = chip.offsetLeft-(lenta.clientWidth-chip.offsetWidth)/2;
+    m6center(); applyMorph();
+    if(!m6bound){ m6bound=true; screen.addEventListener("pointermove",m6move); screen.addEventListener("wheel",m6wheel,{passive:false}); }
+  }
+  function renderM6one(){ // M6.2 — один оригинал (время): лента оригиналов, скролл ведёт по X, курсор Y масштабирует всю ленту
+    screen.innerHTML=oneStripHTML();
+    oneApply(false); // центр-инвариант зума
+    if(!m6bound){ m6bound=true; screen.addEventListener("pointermove",m6move); screen.addEventListener("wheel",m6wheel,{passive:false}); }
+  }
+
+  /* M7 и M8 — курсорный столбец: навигация = позиция курсора X по ленте (общий с M9 слой, маппинг R10: доля экрана =
+     доля ленты, активная копия под курсором = зона R21, края бесплатно — ракорд не нужен). Отличие — восприятие. */
+  function m78nav(lenta,r){ // ставит ленту по доле r и активную копию под курсором; возвращает активный индекс
+    var SW=lenta.scrollWidth;
+    lenta.scrollLeft=r*(SW-lenta.clientWidth);                       // пропорция: доля экрана = доля ленты (позиция = значение)
+    var step=lenta.children[1].offsetLeft-lenta.children[0].offsetLeft;
+    state.current=clamp(Math.floor((r*SW-lenta.children[0].offsetLeft)/step),0,N-1); // копия, содержащая контентную точку r·SW
+    [].forEach.call(lenta.querySelectorAll(".lchip"),function(c){ c.setAttribute("aria-current",(+c.dataset.i===state.current)?"true":"false"); });
+    var mn=document.getElementById("mnum"); if(mn) mn.textContent=pad(state.current+1);
+    state.m78x=r;
+  }
+
+  /* M7 — навигация курсор X × восприятие клик (точка). Клик по активной копии → оригинал во весь экран (как M1). */
+  var m7bound=false;
+  function m7nav(r){ // курсор X → положение ленты; активный = кадр, чей центр ближе к центру экрана (контрольная линия)
+    var lenta=document.getElementById("lenta"); if(!lenta) return;
+    var cw=lenta.clientWidth, max=lenta.scrollWidth-cw;
+    lenta.scrollLeft=r*max;                                            // доля экрана = доля ленты (позиция = значение, R10)
+    var cx=lenta.scrollLeft+cw/2, best=0, bd=Infinity;                 // ракорд в CSS даёт кадру 0 и 49 доехать до центра (R15)
+    [].forEach.call(lenta.querySelectorAll(".lchip"),function(c){ var m=c.offsetLeft+c.offsetWidth/2, d=Math.abs(m-cx); if(d<bd){bd=d;best=+c.dataset.i;} });
+    state.current=best;
+    [].forEach.call(lenta.querySelectorAll(".lchip"),function(c){ c.setAttribute("aria-current",(+c.dataset.i===best)?"true":"false"); });
+    state.m78x=r;
+  }
+  function m7move(e){ if(state.model!=="M7"||state.m7v!=="cursor"||state.open!==null) return; // только M7.1; R13: в оригинале заморожена
+    var sr=screen.getBoundingClientRect(), r=clamp((e.clientX-sr.left)/sr.width,0,1);
+    m7nav(r);
+  }
+  function m7click(){ if(state.model!=="M7"||state.m7v!=="cursor") return; // только M7.1
+    var full=document.getElementById("m7full"); if(!full) return;
+    if(state.open!==null){ state.open=null; full.hidden=true; return; } // клик по оригиналу — назад к той же копии (R13)
+    state.open=state.current;                                          // точка: мгновенный обмен активная копия→оригинал
+    document.getElementById("m7idx").textContent=pad(state.open+1); full.hidden=false;
+  }
+  function renderM7(){ if(state.m7v==="drag") return renderM7drag(); return renderM7cursor(); }
+  function renderM7cursor(){ // M7.1 «Курсор» — горизонтальная крупная лента, курсор X листает, клик раскрывает оригинал
+    var s='';
+    for(var k=0;k<N;k++) s+='<button class="lchip" data-i="'+k+'" tabindex="-1" '+(k===state.current?'aria-current="true"':'')+'><span class="n">'+pad(k+1)+'</span></button>';
+    screen.innerHTML=
+      '<div class="m7lenta" id="lenta">'+s+'</div>'
+      +'<div class="ctl-line-v" aria-hidden="true" style="top:0;height:100%"></div>'
+      +'<div class="photofull" id="m7full"'+(state.open!==null?'':' hidden')+'><div class="photo-frame orangefill"><span class="idx" id="m7idx">'+(state.open!==null?pad(state.open+1):'')+'</span></div></div>';
+    m7nav(state.m78x||0); // восстановить позицию навигации (R13/R18)
+    if(!m7bound){ m7bound=true; screen.addEventListener("pointermove",m7move); screen.addEventListener("click",m7click); }
+  }
+  /* M7.2 «Драг» (макет Сергея) — вертикальная лента-кольцо; совмещённый жест: pointerdown раскрывает оригинал текущего
+     кадра поверх, hold+move по Y листает (оригинал сменяется), up оставляет. Клик = восприятие, позиция = навигация (R5/R7). */
+  function renderM7drag(){
+    var s='';
+    for(var rp=0;rp<3;rp++) for(var k=0;k<N;k++) s+='<button class="lchip" data-i="'+k+'" tabindex="-1"><span class="n">'+pad(k+1)+'</span></button>';
+    screen.innerHTML=
+      '<div class="m7vlenta" id="lenta">'+s+'</div>'
+      +'<div class="ctl-line-h" aria-hidden="true"></div>'
+      +'<div class="m7vfull" id="m7full"'+(state.open!==null?'':' hidden')+'><div class="m7vbig orangefill"><span class="idx" id="m7idx">'+(state.open!==null?pad(state.open+1):'')+'</span></div></div>';
+    var lenta=document.getElementById("lenta"), full=document.getElementById("m7full");
+    var period=lenta.children[N].offsetTop-lenta.children[0].offsetTop; // шаг кольца = одна копия ленты (по вертикали)
+    var startChip=lenta.children[N+(state.current||0)]; // старт: активный кадр у центра, средняя треть кольца
+    if(startChip) lenta.scrollTop = startChip.offsetTop-(lenta.clientHeight-startChip.offsetHeight)/2;
+    function centerActive(){ var cy=lenta.scrollTop+lenta.clientHeight/2, best=state.current, bd=Infinity; // активный = кадр у центральной линии
+      [].forEach.call(lenta.children,function(c){ var m=c.offsetTop+c.offsetHeight/2, d=Math.abs(m-cy); if(d<bd){bd=d;best=+c.dataset.i;} }); return best; }
+    function paint(){ var a=centerActive(); [].forEach.call(lenta.children,function(c){ c.setAttribute("aria-current",(+c.dataset.i===a)?"true":"false"); }); return a; }
+    paint();
+    var drag=null, lastUp=0;
+    function down(e){ if(e.button!==undefined&&e.button>0) return;
+      var a=paint(); state.current=a; state.open=a; document.getElementById("m7idx").textContent=pad(a+1); full.hidden=false; // pointerdown раскрывает оригинал
+      drag={y0:e.clientY,s0:lenta.scrollTop}; state.grabbing=true; screen.classList.add("grabbing");
+      if(e.target.setPointerCapture){ try{ e.target.setPointerCapture(e.pointerId); }catch(_){} }
+      e.preventDefault();
+    }
+    function move(e){ if(!drag) return; // hold+move по Y листает кольцо, оригинал сменяется на центральный кадр
+      var y=drag.s0-(e.clientY-drag.y0);
+      while(y<period*0.5) y+=period; while(y>period*1.5) y-=period; // невидимый телепорт в среднюю треть
+      lenta.scrollTop=y;
+      var a=paint(); if(a!==state.open){ state.open=a; state.current=a; document.getElementById("m7idx").textContent=pad(a+1); }
+    }
+    function up(){ if(!drag) return; drag=null; lastUp=Date.now(); state.open=null; full.hidden=true; state.grabbing=false; screen.classList.remove("grabbing"); } // отпускание драга закрывает оригинал (драг держит его) — вердикт Сергея
+    lenta.addEventListener("pointerdown",down);
+    lenta.addEventListener("pointermove",move);
+    lenta.addEventListener("pointerup",up);
+    lenta.addEventListener("pointercancel",up);
+    lenta.addEventListener("click",function(){ if(state.open!==null && Date.now()-lastUp>=250){ state.open=null; full.hidden=true; } }); // клик после драга — назад
+  }
+
+  /* M8 — навигация курсор X × восприятие скролл (интервал, лупа). Две ветки (R17): оригинал/копия и один оригинал. */
+  var m8bound=false;
+  function m8move(e){ if(state.model!=="M8") return;
+    var sr=screen.getBoundingClientRect(), r=clamp((e.clientX-sr.left)/sr.width,0,1);
+    if(state.m8v==="one"){ state.r9=r; oneApply(true); return; } // M8.2: курсор X → доля ленты оригиналов, кадр под курсором пинуется
+    var lenta=document.getElementById("lenta"); if(!lenta) return;              // M8.1: курсор X → навигация по превью
+    m78nav(lenta,r); applyMorph(); // морф показывает копию под курсором на текущей степени лупы (t не трогаем — R7)
+  }
+  function m8wheel(e){ if(state.model!=="M8") return;
+    e.preventDefault();
+    state.t=clamp(state.t - e.deltaY/600, 0, 1); // колесо вверх (deltaY<0) увеличивает; накопление, кламп на границах
+    if(state.m8v==="one") oneApply(true); else applyMorph(); // M8.2 масштабирует всю ленту; M8.1 — активную копию (лупа)
+  }
+  function renderM8(){ if(state.m8v==="one") return renderM8one(); return renderM8copy(); }
+  function renderM8copy(){ // M8.1 — оригинал/копия: навигация курсором + скролл-лупа активной копии
+    var s='';
+    for(var k=0;k<N;k++) s+='<button class="lchip" data-i="'+k+'" tabindex="-1" '+(k===state.current?'aria-current="true"':'')+'><span class="n">'+pad(k+1)+'</span></button>';
+    screen.innerHTML=
+      '<div class="m3stage" id="m3stage" style="cursor:crosshair"><div class="morph orangefill" id="morph"><span class="idx" id="mnum">'+pad(state.current+1)+'</span></div></div>'
+      +'<div class="lenta m9" id="lenta">'+s+'</div>';
+    m78nav(document.getElementById("lenta"),state.m78x||0); applyMorph(); // восстановить навигацию + текущую степень
+    if(!m8bound){ m8bound=true; screen.addEventListener("pointermove",m8move); screen.addEventListener("wheel",m8wheel,{passive:false}); }
+  }
+  function renderM8one(){ // M8.2 — один оригинал (время): лента оригиналов, курсор X ведёт, скролл масштабирует всю ленту
+    screen.innerHTML=oneStripHTML();
+    state.r9=state.m78x||0; oneApply(true); // кадр под курсором пинуется
+    if(!m8bound){ m8bound=true; screen.addEventListener("pointermove",m8move); screen.addEventListener("wheel",m8wheel,{passive:false}); }
+  }
+
+  /* M3 — два варианта: курсор Y и драг; в обоих лента-кольцо (R15б, R20 — одна логика для всех превью,
+     краевых исключений нет): три копии ленты + невидимый телепорт (приём стенда M5) */
+  function renderLenta(){
+    // Гвард кольца (R20/R3/R9): дубль одной копии виден, когда период P = N3·(w+g) < W + w.
+    // Лечится только укрупнением чипа: больше повторов не помогает — расстояние между экземплярами всегда = P.
+    // Отсюда динамический нижний предел чипа; ручка «чип ленты» физически не может сломать кольцо.
+    var gRing=(knob.gcol!=null?knob.gcol:7), W=screen.clientWidth;
+    var hMin=Math.max(48,Math.ceil((W-N3*gRing)/(1.7375*(N3-1))));
+    var raw=(knob.chip!=null?knob.chip:80);
+    var chip=Math.max(raw,hMin); // эффективный чип: сырое значение, поднятое гвардом до достижимости кольца
+    screen.style.setProperty("--chip-h",chip+"px");
+    var kbChip=document.getElementById("kb-chip");
+    kbChip.min=String(hMin);
+    // ручка не лжёт: подпись = ФАКТИЧЕСКИ применённый чип (после гварда), а не сырое значение слайдера
+    var lbl=document.getElementById("kb-chip-v");
+    if(lbl) lbl.textContent = knob.chip==null ? (chip>80?chip+"px · гвард":"системно") : (chip>raw?chip+"px · гвард":chip+"px");
+    var s='';
+    for(var rp=0;rp<3;rp++) for(var k=0;k<N3;k++) s+='<button class="lchip" data-i="'+k+'" aria-label="Фото '+(k+1)+'" '+(k===state.current?'aria-current="true"':'')+' tabindex="-1"><span class="n">'+pad(k+1)+'</span></button>';
+    var stageCursor = state.m3v==="drag" ? "grab" : "ns-resize";
+    var lentaCls = state.m3v==="drag" ? "lenta dragv" : "lenta ring";
+    var ctl = state.m3v==="drag" ? '<div class="ctl-zone" aria-hidden="true"><span class="ctl-cap" id="ctlcap"></span></div>' : '';
+
+    screen.innerHTML=
+      '<div class="m3stage" id="m3stage" style="cursor:'+stageCursor+(state.m3v==="drag"?";touch-action:none":"")+'"><div class="morph orangefill" id="morph"><span class="idx" id="mnum">'+pad(state.current+1)+'</span></div></div>'
+      +'<div class="'+lentaCls+'" id="lenta">'+s+'</div>'+ctl;
+
+    applyMorph();
+    var stage=document.getElementById("m3stage"), lenta=document.getElementById("lenta");
+    var period=lenta.children[N3].offsetLeft-lenta.children[0].offsetLeft; // шаг кольца = одна копия ленты
+
+    if(state.m3v==="cursor"){
+      stage.addEventListener("pointermove",function(e){ var r=stage.getBoundingClientRect();
+        state.t=clamp(1-(e.clientY-r.top)/r.height,0,1); applyMorph(); });
+      var centerOn=function(k,smooth){ // центрирование по кольцу кратчайшей дугой
+        var sN=lenta.scrollLeft; // нормализация в среднюю треть — мгновенный телепорт, невидим
+        while(sN<period*0.5) sN+=period;
+        while(sN>period*1.5) sN-=period;
+        if(sN!==lenta.scrollLeft) lenta.scrollLeft=sN;
+        var mid=lenta.children[N3+k], t0=mid.offsetLeft-(lenta.clientWidth-mid.offsetWidth)/2;
+        var best=t0, cand=[t0-period,t0+period], j;
+        for(j=0;j<2;j++) if(Math.abs(cand[j]-sN)<Math.abs(best-sN)) best=cand[j]; // кратчайшая дуга (≤ полкольца)
+        best=clamp(best,0,lenta.scrollWidth-lenta.clientWidth);
+        if(smooth) animateScroll(lenta,best,{axis:"left",dur:280}); else lenta.scrollLeft=best; // тот же плавный хелпер
+      };
+      [].forEach.call(lenta.querySelectorAll(".lchip"),function(c){
+        c.addEventListener("click",function(){ state.current=+c.dataset.i; state.t=0; setLen(); applyMorph();          centerOn(state.current,true); });
+      });
+      centerOn(state.current,false); // старт: активное превью в центре, той же логикой
+    } else { // drag — композиция жестов клетки: клик = навигационная сцепка, курсор = континуум; лента-кольцо (R15б)
+      var drag=null;
+      var activeByMark=function(){ // синхронизация: активная копия = та, что внутри контрольного коридора
+        var lr=lenta.getBoundingClientRect(), cx=lr.left+lr.width/2, best=state.current, bd=Infinity;
+        [].forEach.call(lenta.querySelectorAll(".lchip"),function(c){
+          var r=c.getBoundingClientRect(), d=Math.abs((r.left+r.right)/2-cx);
+          if(d<bd){bd=d;best=+c.dataset.i;}
+        });
+        if(best!==state.current){ state.current=best; setLen(); }
+      };
+      var down=function(e){
+        if(e.button!==undefined && e.button>0) return;
+        drag={x0:e.clientX,y0:e.clientY,s0:lenta.scrollLeft,t0:state.t}; // якорь в точке зажатия: значения не прыгают
+        state.grabbing=true; screen.classList.add("grabbing");
+        if(e.target.setPointerCapture){ try{ e.target.setPointerCapture(e.pointerId); }catch(_){} }
+        e.preventDefault();      };
+      var mv=function(e){
+        if(!drag) return;
+        var sh=stage.getBoundingClientRect().height||1;
+        var x = drag.s0-(e.clientX-drag.x0); // X: лента приклеена к руке, упоров нет —
+        while(x<period*0.5){ x+=period; drag.s0+=period; }   // невидимый телепорт держит кольцо
+        while(x>period*1.5){ x-=period; drag.s0-=period; }   // в средней трети (якорь сдвигается синхронно)
+        lenta.scrollLeft=x;
+        state.t = clamp(drag.t0+(drag.y0-e.clientY)/sh, 0, 1); // Y: степень приклеена к руке (край степени легален)
+        activeByMark(); applyMorph();      };
+      var up=function(){ if(!drag) return; drag=null; state.grabbing=false; screen.classList.remove("grabbing"); }; // отпускание рвёт сцепку, значения остаются
+      [stage,lenta].forEach(function(el){
+        el.addEventListener("pointerdown",down);
+        el.addEventListener("pointermove",mv);
+        el.addEventListener("pointerup",up);
+        el.addEventListener("pointercancel",up);
+      });
+      var chip=lenta.children[N3+state.current]; // старт: активная копия средней трети в коридоре
+      if(chip) lenta.scrollLeft = chip.offsetLeft-(lenta.clientWidth-chip.offsetWidth)/2;
+      activeByMark(); setLen();
+    }
+  }
+
+  function setLen(){
+    var lenta=document.getElementById("lenta"); if(!lenta) return;
+    [].forEach.call(lenta.querySelectorAll(".lchip"),function(c){ c.setAttribute("aria-current",(+c.dataset.i===state.current)?"true":"false"); });
+    var mnum=document.getElementById("mnum"); if(mnum) mnum.textContent=pad(state.current+1);
+    var cap=document.getElementById("ctlcap"); if(cap) cap.textContent=pad(state.current+1)+" / "+N3; // «где я» у коридора (R14)
+  }
+
+  /* M9 — угол матрицы: навигация позиция курсора X × восприятие позиция курсора Y; без клика, скролла и зажатия.
+     Две схемы (R17): «Оригинал+копия» (отношения) и «Один оригинал» (время: Y = масштаб состояния) */
+  var m9bound=false;
+  function m9move(e){
+    if(state.model!=="M9") return;
+    var sr=screen.getBoundingClientRect();
+    var r=clamp((e.clientX-sr.left)/sr.width,0,1);
+    if(state.m9v==="copy"){
+      var stage=document.getElementById("m3stage"), lenta=document.getElementById("lenta");
+      if(!stage||!lenta) return;
+      var st=stage.getBoundingClientRect(), SW=lenta.scrollWidth;
+      lenta.scrollLeft=r*(SW-lenta.clientWidth);                // пропорция: доля экрана = доля ленты (позиция = значение)
+      var step=lenta.children[1].offsetLeft-lenta.children[0].offsetLeft; // единое соответствие: активная копия —
+      state.current=clamp(Math.floor((r*SW-lenta.children[0].offsetLeft)/step),0,N-1); // чип с контентной точкой r·SW
+      state.t=clamp(1-(e.clientY-st.top)/st.height,0,1);
+      setLen9(); applyMorph();
+    } else {
+      state.r9=r;                                               // X: доля ленты (чистая позиция)
+      state.t=clamp(1-(e.clientY-sr.top)/sr.height,0,1);        // Y: масштаб состояния (чистая позиция)
+      oneApply(true); // кадр под курсором пинуется (pinAtCursor)
+    }
+  }
+  function setLen9(){
+    var lenta=document.getElementById("lenta"); if(!lenta) return;
+    [].forEach.call(lenta.querySelectorAll(".lchip"),function(c){ c.setAttribute("aria-current",(+c.dataset.i===state.current)?"true":"false"); });
+    var mnum=document.getElementById("mnum"); if(mnum) mnum.textContent=pad(state.current+1);
+  }
+  /* Общий рендер ленты оригиналов (ветка времени R17) для M9.2 / M6.2 / M8.2.
+     Инвариант зума: контентная доля state.r9 пинуется к экранной точке pin — при зуме кадр там не уезжает.
+     pinAtCursor=true → pin = r9·W (кадр под курсором, M9.2/M8.2); false → pin = W/2 (центр сцены, M6.2). */
+  function oneApply(pinAtCursor){
+    var wrap=document.getElementById("onewrap"), strip=document.getElementById("onestrip");
+    if(!wrap||!strip) return;
+    var W=wrap.clientWidth, H=wrap.clientHeight;
+    var ar=(knob.fmt==="port")?2/3:1.5;            // подача кадра (ручка формата)
+    var g=(knob.gcol!=null)?knob.gcol:8;           // межколонник ленты (ручка)
+    var h=84+(H-84)*state.t;                       // состояние оригинала: 84px (строй) … весь экран (кадр)
+    var SW=16+N*ar*h+(N-1)*g;                      // длина ленты при этом масштабе
+    strip.style.setProperty("--h",h.toFixed(1)+"px");
+    var pin=pinAtCursor?state.r9*W:W/2;
+    var off=clamp(state.r9*SW-pin,0,Math.max(0,SW-W)); // контентная доля r9 у экранной точки pin (инвариант зума)
+    strip.style.transform="translateX(-"+off.toFixed(1)+"px)";
+    state.current=clamp(Math.floor(state.r9*N),0,N-1); // активный кадр = доля r9 (единого воплощения, R17)
+  }
+  function renderM9(){
+    var k, s='';
+    if(state.m9v==="copy"){
+      for(k=0;k<N;k++) s+='<button class="lchip" data-i="'+k+'" tabindex="-1" aria-label="Фото '+(k+1)+'" '+(k===state.current?'aria-current="true"':'')+'><span class="n">'+pad(k+1)+'</span></button>';
+      screen.innerHTML=
+        '<div class="m3stage" id="m3stage" style="cursor:crosshair"><div class="morph orangefill" id="morph"><span class="idx" id="mnum">'+pad(state.current+1)+'</span></div></div>'
+        +'<div class="lenta m9" id="lenta">'+s+'</div>';
+      applyMorph();
+    } else { // R19: «активного кадра» в этой схеме нет — рамка удалена (активность ни на что не влияет, кадр и так под курсором)
+      for(k=0;k<N;k++) s+='<div class="otile orangefill" data-i="'+k+'"><span>'+pad(k+1)+'</span></div>';
+      screen.innerHTML=
+        '<div class="onewrap" id="onewrap"><div class="onestrip" id="onestrip">'+s+'</div></div>';
+      oneApply(true);
+    }
+    if(!m9bound){ m9bound=true; screen.addEventListener("pointermove",m9move); }
+  }
+  function oneStripHTML(){ // лента 50 оригиналов (ветка времени): одно воплощение каждого кадра (R17)
+    var s=''; for(var k=0;k<N;k++) s+='<div class="otile orangefill" data-i="'+k+'"><span>'+pad(k+1)+'</span></div>';
+    return '<div class="onewrap" id="onewrap"><div class="onestrip" id="onestrip">'+s+'</div></div>';
+  }
+  function applyMorph(){ // степень видна самим размером кадра (позиция = значение) — числовой дубль удалён по R19
+    var m=document.getElementById("morph"); if(!m)return;
+    var k=0.42+state.t*0.58;
+    m.style.transform="scale("+k.toFixed(3)+")";
+    var num=m.querySelector(".idx"); // контр-масштаб: номер оригинала не растёт с кадром (вердикт)
+    if(num) num.style.transform="scale("+(1/k).toFixed(4)+")";
+  }
+
+
+  document.addEventListener("keydown",function(e){
+    if(e.key!=="Escape")return;
+    if(state.info){ state.info=false; infoSync(); return; } // сначала закрывается описание
+    if(state.model==="M1" && state.view==="photo"){ state.view="grid"; render(); }
+    else if(state.model==="M4" && state.open!==null){ state.open=null; var f=document.getElementById("l4full"); if(f) f.hidden=true; }
+    else if(state.model==="M7" && state.open!==null){ state.open=null; var f7=document.getElementById("m7full"); if(f7) f7.hidden=true; }
+  });
+
+  /* R18: конструкции считаются от окна — при resize пересчёт сцены (кванты-экраны, ракорд, кадры); позиции хода сохраняются */
+  var rsz;
+  window.addEventListener("resize",function(){
+    clearTimeout(rsz);
+    rsz=setTimeout(function(){ if(!state.grabbing) render(); },150);
+  });
+
+  render();
+})();
+</script>

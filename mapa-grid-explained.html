@@ -1,0 +1,298 @@
+<title>Mapa Grid — как устроена модель</title>
+<style>
+  :root {
+    --bg: #d9d8d2;
+    --panel: #e4e3dd;
+    --ink: #1c1b18;
+    --ink-soft: #55534c;
+    --ink-faint: #8a887f;
+    --line: rgba(28,27,24,.14);
+    --rule: rgba(28,27,24,.22);
+    --accent: #9c4a34;
+    --photo: #b78a5f;
+    --grid: #8f9ba3;
+    --font: ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #23221c; --panel: #2b2a23; --ink: #e9e7dd; --ink-soft: #b3b0a4; --ink-faint: #85837a;
+      --line: rgba(233,231,221,.14); --rule: rgba(233,231,221,.24); --accent: #d1795f; --photo: #a9835c; --grid: #7b8790;
+    }
+  }
+  :root[data-theme="light"] { --bg:#d9d8d2; --panel:#e4e3dd; --ink:#1c1b18; --ink-soft:#55534c; --ink-faint:#8a887f; --line:rgba(28,27,24,.14); --rule:rgba(28,27,24,.22); --accent:#9c4a34; --photo:#b78a5f; --grid:#8f9ba3; }
+  :root[data-theme="dark"] { --bg:#23221c; --panel:#2b2a23; --ink:#e9e7dd; --ink-soft:#b3b0a4; --ink-faint:#85837a; --line:rgba(233,231,221,.14); --rule:rgba(233,231,221,.24); --accent:#d1795f; --photo:#a9835c; --grid:#7b8790; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--font); font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 72px 28px 120px; }
+
+  /* ---- hero ---- */
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 18px; }
+  h1 { font-size: clamp(30px, 6vw, 46px); font-weight: 650; letter-spacing: -.02em; line-height: 1.08; text-wrap: balance; margin: 0 0 20px; }
+  .lede { font-size: 19px; line-height: 1.55; color: var(--ink-soft); margin: 0 0 26px; max-width: 60ch; }
+  .lede b { color: var(--ink); font-weight: 600; }
+  .links { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+  .links a {
+    font-family: var(--mono); font-size: 13px; text-decoration: none;
+    color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+    border-radius: 4px; padding: 7px 12px;
+  }
+  .links a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+  /* ---- оглавление ---- */
+  .toc { margin: 40px 0 8px; padding: 20px 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+  .toc h2 { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); font-weight: 500; margin: 0 0 12px; }
+  .toc ol { margin: 0; padding: 0; list-style: none; counter-reset: t; display: grid; gap: 7px; }
+  .toc li { counter-increment: t; }
+  .toc a { text-decoration: none; color: var(--ink-soft); display: flex; gap: 12px; }
+  .toc a:hover { color: var(--ink); }
+  .toc a::before { content: counter(t, decimal-leading-zero); font-family: var(--mono); font-size: 13px; color: var(--accent); }
+
+  /* ---- секции ---- */
+  section { margin-top: 64px; scroll-margin-top: 24px; }
+  .s-num { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: var(--accent); margin: 0 0 8px; }
+  h2.s-title { font-size: 26px; font-weight: 640; letter-spacing: -.01em; margin: 0 0 18px; }
+  h3 { font-size: 17px; font-weight: 640; margin: 30px 0 8px; }
+  p { margin: 0 0 16px; }
+  p b { font-weight: 640; }
+  a.inl { color: var(--accent); }
+  ul.plain { margin: 0 0 16px; padding-left: 0; list-style: none; display: grid; gap: 8px; }
+  ul.plain li { padding-left: 22px; position: relative; color: var(--ink-soft); }
+  ul.plain li::before { content: "→"; position: absolute; left: 0; color: var(--accent); font-family: var(--mono); }
+  ul.plain li b { color: var(--ink); }
+
+  /* формулы / код */
+  .formula {
+    font-family: var(--mono); font-size: 14px; line-height: 1.7;
+    background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 5px; padding: 14px 16px; margin: 0 0 18px; overflow-x: auto; color: var(--ink);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .formula .c { color: var(--ink-faint); }
+  code { font-family: var(--mono); font-size: .9em; background: color-mix(in srgb, var(--ink) 8%, transparent); padding: 1px 5px; border-radius: 3px; }
+
+  .note { font-size: 14.5px; color: var(--ink-soft); border-top: 1px solid var(--line); padding-top: 14px; margin-top: 22px; }
+  .note b { color: var(--ink); }
+
+  /* фигуры-схемы */
+  figure { margin: 26px 0; }
+  figure svg { display: block; width: 100%; height: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+  figcaption { font-size: 13.5px; color: var(--ink-faint); margin-top: 10px; font-family: var(--mono); }
+
+  /* FIT-диаграмма (CSS) */
+  .fit-row { display: flex; flex-wrap: wrap; gap: 26px; margin: 26px 0 6px; }
+  .fit-case { flex: 1 1 150px; min-width: 150px; }
+  .fit-mod { position: relative; width: 100%; aspect-ratio: 1; border: 1px dashed var(--rule); }
+  .fit-photo { position: absolute; background: linear-gradient(135deg, color-mix(in srgb, var(--photo) 78%, #fff), var(--photo)); }
+  .fit--b .fit-photo { left: 0; bottom: 0; width: 100%; height: 62%; }
+  .fit--l .fit-photo { left: 0; bottom: 0; height: 100%; width: 62%; }
+  .fit--r .fit-photo { right: 0; bottom: 0; height: 100%; width: 62%; }
+  .fit-cap { margin-top: 10px; font-size: 12.5px; color: var(--ink-soft); }
+  .fit-cap .t { font-family: var(--mono); color: var(--ink); display: block; }
+  .fit--b .fit-txt { margin-left: 0; }
+  .fit--l .fit-txt { margin-left: 0; }
+  .fit--r .fit-txt { margin-left: 38%; }
+  .fit-edge { display: inline-block; border-left: 2px solid var(--accent); padding-left: 7px; }
+
+  footer { margin-top: 80px; padding-top: 22px; border-top: 1px solid var(--rule); font-size: 14px; color: var(--ink-faint); }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Вёрстка · разбор модели</p>
+  <h1>Mapa Grid: как устроена модель</h1>
+  <p class="lede">Галерея выросла из одного правила — <b>«вписать фото в квадратный модуль»</b> — и доросла до адаптивной сетки с параллаксом на WebGL. Здесь разобрано, по каким алгоритмам она работает: слой за слоем, с формулами и схемами.</p>
+  <div class="links">
+    <a href="https://claude.ai/code/artifact/15d77383-7cb3-443c-932b-fc53743b76ea">▶ Открыть модель (WebGL)</a>
+    <a href="https://claude.ai/code/artifact/c7729be5-557b-4478-898a-49b885bafa20">▶ Версия на DOM / CSS</a>
+  </div>
+
+  <nav class="toc">
+    <h2>Слои модели</h2>
+    <ol>
+      <li><a href="#fit">Модуль и правило FIT</a></li>
+      <li><a href="#text">Текст от левого края фото</a></li>
+      <li><a href="#grid">Сетка: шахматка, смещение, просвет</a></li>
+      <li><a href="#adapt">Адаптивность и поля экрана</a></li>
+      <li><a href="#parallax">Параллакс между строками</a></li>
+      <li><a href="#webgl">Перенос на WebGL</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1 -->
+  <section id="fit">
+    <p class="s-num">01</p>
+    <h2 class="s-title">Модуль и правило FIT</h2>
+    <p>Базовый кирпич — <b>прозрачный квадрат</b> фиксированного размера (по умолчанию 300×300). Внутрь помещается фото по правилу <b>FIT</b>: вписать целиком, сохранив пропорции. Поскольку пропорции фото и квадрата обычно не совпадают, с одной стороны остаётся пустое поле — и правило говорит, к какой границе фото прижать.</p>
+    <p>Решение принимается по двум входным данным: <b>ориентация фото</b> (считается из его реальных размеров) и <b>номер колонки</b>, в которой стоит модуль.</p>
+    <div class="formula">ar = ширина_фото / высота_фото        <span class="c">// пропорция</span>
+
+<span class="c">// ЕСЛИ фото горизонтальное или квадратное (ar ≥ 1)</span>
+фото по ширине модуля, прижато <b>к низу</b>
+
+<span class="c">// ЕСЛИ фото вертикальное (ar &lt; 1) и колонка 1–2</span>
+фото по высоте модуля, прижато <b>влево</b>
+
+<span class="c">// ЕСЛИ фото вертикальное (ar &lt; 1) и колонка 3–4</span>
+фото по высоте модуля, прижато <b>вправо</b></div>
+
+    <div class="fit-row">
+      <div class="fit-case fit--b">
+        <div class="fit-mod"><div class="fit-photo"></div></div>
+        <div class="fit-cap"><span class="fit-txt fit-edge"><span class="t">горизонт / квадрат</span>FIT по низу</span></div>
+      </div>
+      <div class="fit-case fit--l">
+        <div class="fit-mod"><div class="fit-photo"></div></div>
+        <div class="fit-cap"><span class="fit-txt fit-edge"><span class="t">вертикаль · кол. 1–2</span>FIT влево</span></div>
+      </div>
+      <div class="fit-case fit--r">
+        <div class="fit-mod"><div class="fit-photo"></div></div>
+        <div class="fit-cap"><span class="fit-txt fit-edge"><span class="t">вертикаль · кол. 3–4</span>FIT вправо</span></div>
+      </div>
+    </div>
+    <p class="note">Пунктир — границы прозрачного модуля, заливка — фото. Красная риска показывает, откуда стартует подпись — об этом следующий слой.</p>
+  </section>
+
+  <!-- 2 -->
+  <section id="text">
+    <p class="s-num">02</p>
+    <h2 class="s-title">Текст от левого края фото</h2>
+    <p>Подпись под модулем верстается не от края модуля, а <b>от левого края фото внутри него</b>. Для горизонтального фото и для вертикали слева это одно и то же (левый край фото совпадает с модулем). А вот для вертикали, прижатой вправо, фото сдвинуто — и подпись уезжает вместе с ним.</p>
+    <p>Сдвиг считается из пропорции, а не измеряется по факту (это важно: измерять DOM до раскладки ненадёжно):</p>
+    <div class="formula"><span class="c">// ширина вписанного вертикального фото при высоте модуля mod</span>
+ширина_фото = mod · ar
+
+<span class="c">// левый край фото = отступ подписи</span>
+photoLeft = mod − mod · ar        <span class="c">// для FIT вправо</span>
+photoLeft = 0                     <span class="c">// для низа и FIT влево</span></div>
+    <p class="note"><b>Урок отладки.</b> Первая версия считала этот отступ через <code>clientWidth</code> модуля — и он выходил нулевым, потому что встроенные картинки (data-URI) готовы синхронно, и расчёт срабатывал до первой раскладки, когда размеры ещё нули. Лечится расчётом от константы <code>mod</code> и пропорции фото.</p>
+  </section>
+
+  <!-- 3 -->
+  <section id="grid">
+    <p class="s-num">03</p>
+    <h2 class="s-title">Сетка: шахматка, смещение, просвет</h2>
+    <p>Модули расставлены по <b>4 колонкам</b> в шахматном порядке. Это задаёт диагональный ритм:</p>
+    <ul class="plain">
+      <li><b>Нечётные строки</b> (1, 3, 5…) — модули в колонках <b>1 и 3</b>.</li>
+      <li><b>Чётные строки</b> (2, 4, 6…) — модули в колонках <b>2 и 4</b>.</li>
+      <li>Внутри строки второй модуль <b>опущен на смещение</b> относительно первого — строка идёт по диагонали.</li>
+    </ul>
+    <p>Вертикальная раскладка держится на трёх числах: размер модуля <code>mod</code>, смещение внутри строки <code>offset</code>, просвет между строками <code>gap</code>. Из них складывается шаг строки:</p>
+    <div class="formula">rs = mod + offset + gap                 <span class="c">// шаг между строками</span>
+
+верхняя_линия_строки(row) = BASE + row · rs
+верх модуля колонок 1,2  = верхняя_линия
+верх модуля колонок 3,4  = верхняя_линия + offset</div>
+
+    <figure>
+      <svg viewBox="0 0 620 300" role="img" aria-label="Схема шахматной раскладки">
+        <!-- колонки-направляющие -->
+        <g stroke="var(--line)" stroke-width="1">
+          <line x1="40" y1="20" x2="40" y2="280"/><line x1="185" y1="20" x2="185" y2="280"/>
+          <line x1="330" y1="20" x2="330" y2="280"/><line x1="475" y1="20" x2="475" y2="280"/>
+        </g>
+        <g font-family="var(--mono)" font-size="11" fill="var(--ink-faint)" text-anchor="middle">
+          <text x="40" y="15">кол 1</text><text x="185" y="15">кол 2</text><text x="330" y="15">кол 3</text><text x="475" y="15">кол 4</text>
+        </g>
+        <!-- строка 1: кол 1 и 3 -->
+        <rect x="40" y="40" width="70" height="70" fill="var(--grid)" opacity="0.85"/>
+        <rect x="330" y="70" width="70" height="70" fill="var(--grid)" opacity="0.85"/>
+        <!-- строка 2: кол 2 и 4 -->
+        <rect x="185" y="170" width="70" height="70" fill="var(--photo)" opacity="0.85"/>
+        <rect x="475" y="200" width="70" height="70" fill="var(--photo)" opacity="0.85"/>
+        <!-- смещение offset -->
+        <line x1="365" y1="40" x2="365" y2="70" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="373" y="60" font-family="var(--mono)" font-size="11" fill="var(--accent)">offset</text>
+        <!-- шаг строки rs -->
+        <line x1="20" y1="40" x2="20" y2="170" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="14" y="110" font-family="var(--mono)" font-size="11" fill="var(--accent)" transform="rotate(-90 14 110)" text-anchor="middle">rs</text>
+      </svg>
+      <figcaption>Строка 1 — колонки 1 и 3; строка 2 — колонки 2 и 4. Второй модуль в строке опущен на offset.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 4 -->
+  <section id="adapt">
+    <p class="s-num">04</p>
+    <h2 class="s-title">Адаптивность и поля экрана</h2>
+    <p>Размер модуля <b>фиксирован</b>, а вот горизонтальные позиции колонок считаются от ширины окна. Крайняя левая колонка стоит у левого поля, крайняя правая упирается правым краём в правое поле — по <b>20px с каждой стороны</b>. Всё между ними делится поровну:</p>
+    <div class="formula">step = (ширина_экрана − 2·20 − mod) / 3   <span class="c">// шаг между колонками</span>
+x(колонка) = 20 + (колонка − 1) · step</div>
+    <p>Когда экрана не хватает, <code>step</code> становится <b>меньше ширины модуля</b> — и колонки начинают наезжать друг на друга. Это не ошибка, а способ уложить сетку в любой экран: по вертикали строки разведены, поэтому наезжающие по горизонтали модули складываются в плотную диагональную ленту.</p>
+    <p class="note"><b>Две грабли, которые ловились замером, а не на глаз.</b> Дефолтный <code>&lt;figure&gt;</code> несёт браузерный <code>margin: 0 40px</code> — он молча толкал всю сетку вправо, пока не сбросили. А ширину надо брать у <em>видимой</em> области (<code>documentElement.clientWidth</code>): если считать по элементу, вертикальный скроллбар «съедает» правое поле, и оно выходит меньше левого.</p>
+  </section>
+
+  <!-- 5 -->
+  <section id="parallax">
+    <p class="s-num">05</p>
+    <h2 class="s-title">Параллакс между строками</h2>
+    <p>Идея: <b>внизу экрана строки расставлены широко, к верху сближаются</b>. При скролле строка входит снизу «растянутой» и, поднимаясь, сжимается — нижняя визуально догоняет верхнюю. Расстояние между строками перестаёт быть постоянным и становится функцией положения строки <b>на экране</b>.</p>
+    <p>Сдвиг каждой строки — гладкая функция её экранной позиции <code>t</code> (0 — верх экрана, 1 — низ):</p>
+    <div class="formula">t   = (позиция_строки − скролл) / высота_экрана
+amp = сила_параллакса · высота_экрана · 0.3
+dy  = amp · ( cos(2π·t) − 1 ) / 2         <span class="c">// сдвиг строки</span></div>
+
+    <figure>
+      <svg viewBox="0 0 620 260" role="img" aria-label="Схема параллакса">
+        <!-- рамка экрана -->
+        <rect x="30" y="20" width="270" height="220" fill="none" stroke="var(--rule)" stroke-width="1.5"/>
+        <text x="35" y="15" font-family="var(--mono)" font-size="11" fill="var(--ink-faint)">экран</text>
+        <!-- строки: сгущаются вверху, редеют внизу -->
+        <g stroke="var(--grid)" stroke-width="6" stroke-linecap="round">
+          <line x1="50" y1="40" x2="280" y2="40"/>
+          <line x1="50" y1="66" x2="280" y2="66"/>
+          <line x1="50" y1="100" x2="280" y2="100"/>
+          <line x1="50" y1="146" x2="280" y2="146"/>
+          <line x1="50" y1="205" x2="280" y2="205"/>
+        </g>
+        <text x="308" y="46" font-family="var(--mono)" font-size="11" fill="var(--accent)">сжато</text>
+        <text x="308" y="210" font-family="var(--mono)" font-size="11" fill="var(--accent)">широко</text>
+        <!-- график кривой dy(t) -->
+        <g transform="translate(400,20)">
+          <rect x="0" y="0" width="180" height="220" fill="none" stroke="var(--line)"/>
+          <text x="0" y="-6" font-family="var(--mono)" font-size="11" fill="var(--ink-faint)">dy(t)</text>
+          <path d="M 0 0 C 45 0, 45 200, 90 200 C 135 200, 135 0, 180 0" fill="none" stroke="var(--accent)" stroke-width="2"/>
+          <text x="4" y="214" font-family="var(--mono)" font-size="10" fill="var(--ink-faint)">верх</text>
+          <text x="150" y="214" font-family="var(--mono)" font-size="10" fill="var(--ink-faint)">низ</text>
+        </g>
+      </svg>
+      <figcaption>Слева — экран: интервалы вверху сжаты, внизу растянуты. Справа — профиль сдвига dy(t): на кромках экрана он гаснет.</figcaption>
+    </figure>
+
+    <p class="note"><b>Почему именно косинус.</b> Ранняя версия брала степенную кривую только внутри экрана, а снаружи — линию. Значения на кромке совпадали, но <b>скорость</b> строки скакала — и каждая строка, пересекая край экрана при скролле, дёргалась. У косинуса производная на обеих кромках равна нулю, поэтому строка входит и выходит из зоны эффекта плавно. Причину дёрганья, кстати, нашли замером: сначала грешили на скачущую высоту документа — но <code>scrollHeight</code> оказался стабильным, и это отсекло ложную версию.</p>
+  </section>
+
+  <!-- 6 -->
+  <section id="webgl">
+    <p class="s-num">06</p>
+    <h2 class="s-title">Перенос на WebGL</h2>
+    <p>Пока сетка жила на DOM, параллакс двигал элементы через CSS-трансформации на каждый кадр скролла — это нагружало главный поток и перерисовывало тяжёлые фото. На WebGL всё это уходит на видеокарту, и рендер становится дешёвым.</p>
+    <ul class="plain">
+      <li>Каждое фото загружается как <b>текстура</b>, модуль — это прямоугольник (<b>quad</b>) с этой текстурой.</li>
+      <li>FIT считается геометрией quad'а: по пропорции текстуры вычисляются размер и положение фото внутри модуля.</li>
+      <li>Подписи рисуются в отдельные текстуры (текст → 2D-канвас → текстура) и ставятся от левого края фото.</li>
+      <li>Скролл — <b>нативный</b>: невидимый блок держит высоту документа, а полотно на весь экран рисует то, что попадает во вьюпорт.</li>
+      <li>Фон — цвет очистки кадра; цвет подписей автоматически светлеет на тёмном фоне.</li>
+    </ul>
+    <p>Упрощённый цикл отрисовки одного кадра:</p>
+    <div class="formula">на каждый кадр (скролл / изменение параметра):
+  очистить кадр цветом фона
+  для каждой видимой строки:
+    экранная_Y = верхняя_линия − скролл + dy      <span class="c">// параллакс</span>
+    для каждого модуля строки:
+      x = позиция колонки
+      (px, py, pw, ph) = FIT(текстура, колонка)    <span class="c">// вписать фото</span>
+      нарисовать quad с текстурой фото
+      нарисовать quad с текстурой подписи от px</div>
+    <p class="note"><b>Тонкость.</b> Рендер вызывается по событию (скролл, изменение параметра), а не в бесконечном цикле — экономнее. Но тогда WebGL-контекст нужно создавать с <code>preserveDrawingBuffer: true</code>, иначе между кадрами буфер очищается и полотно моргает пустотой.</p>
+  </section>
+
+  <footer>
+    Модель собрана итеративно: сначала одно правило FIT, затем сетка, адаптив, параллакс и перенос на WebGL. Каждый спорный шаг проверялся замером в реальном рендере, а не на глаз — это и есть главный приём вайб-кодинга здесь.
+  </footer>
+</div>

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Стенды и макеты</title>
+<style>
+  :root{ --bg:#FDFDFC; --ink:#16181D; --sec:#5C6270; --line:#E4E6EA; --accent:#2749B0; }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#101114; --ink:#E8E9EC; --sec:#9BA1AD; --line:#26282E; --accent:#7C97E8; }
+  }
+  body{ margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size:16.5px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  main{ width:min(100% - 48px, 42rem); margin:0 auto; padding:72px 0 96px; }
+  .kicker{ font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--sec);
+    display:flex; align-items:center; gap:12px; margin-bottom:22px; }
+  .kicker::before{ content:""; width:34px; height:2px; background:var(--accent); }
+  h1{ font-size:clamp(30px,5vw,42px); line-height:1.05; letter-spacing:-0.02em; margin:0 0 14px; }
+  .sub{ color:var(--sec); margin:0 0 44px; }
+  h2{ font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--sec);
+    margin:38px 0 6px; }
+  ul{ list-style:none; margin:0; padding:0; }
+  li{ border-top:1px solid var(--line); }
+  li:last-child{ border-bottom:1px solid var(--line); }
+  a.row{ display:flex; justify-content:space-between; gap:16px; align-items:baseline;
+    padding:13px 2px; text-decoration:none; color:inherit; }
+  a.row:hover .t, a.row:focus-visible .t{ color:var(--accent); text-decoration:underline; text-underline-offset:3px; }
+  a.row:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .t{ font-weight:500; }
+  .d{ color:var(--sec); font-size:14px; text-align:right; flex:1; }
+  footer{ margin-top:56px; color:var(--sec); font-size:12.5px; letter-spacing:.1em; text-transform:uppercase; }
+  @media (max-width:520px){ a.row{ flex-direction:column; gap:2px; } .d{ text-align:left; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="kicker">Живые стенды · вайб-кодинг</div>
+  <h1>Стенды и макеты</h1>
+  <p class="sub">Алгоритмические сетки и модели взаимодействий. Каждый стенд — работающая страница: тяните окно за край, крутите ручки, смотрите, как закон собирает раскладку.</p>
+
+  <h2>Mapa Grid — алгоритмическая модульная сетка</h2>
+  <ul>
+    <li><a class="row" href="mapa-grid-webgl.html"><span class="t">Живая модель (WebGL)</span><span class="d">параллакс, панель параметров</span></a></li>
+    <li><a class="row" href="mapa-grid-css.html"><span class="t">Живая модель (CSS)</span><span class="d">та же сетка на чистом CSS</span></a></li>
+    <li><a class="row" href="mapa-grid-study.html"><span class="t">Учебный стенд</span><span class="d">датчики, силовые линии, симулятор ширины</span></a></li>
+    <li><a class="row" href="mapa-grid-explained.html"><span class="t">Как устроена модель</span><span class="d">послойный разбор построения</span></a></li>
+  </ul>
+
+  <h2>Алгоритмические стенды</h2>
+  <ul>
+    <li><a class="row" href="force-line.html"><span class="t">Силовая линия</span><span class="d">лонгрид на законе сцепления: абзац стартует от конца предыдущего</span></a></li>
+    <li><a class="row" href="symmetry-symptom.html"><span class="t">Лента Symmetry Symptom</span><span class="d">импульсная навигация + Flip</span></a></li>
+    <li><a class="row" href="hex-menu.html"><span class="t">Сотовое меню</span><span class="d">сота следует за курсором</span></a></li>
+  </ul>
+
+  <h2>Фотогалерея — модели взаимодействий M1–M9</h2>
+  <ul>
+    <li><a class="row" href="gallery-models.html"><span class="t">Матрица моделей M1–M9</span><span class="d">схемы: навигация × восприятие</span></a></li>
+    <li><a class="row" href="gallery-photos.html"><span class="t">Галерея с фотографиями</span><span class="d">модели на живом материале</span></a></li>
+    <li><a class="row" href="gallery-m7.html"><span class="t">M7 — зеркало</span><span class="d">курсор как управляющая позиция</span></a></li>
+  </ul>
+
+  <footer>Сергей Гуров · 2026</footer>
+</main>
+</body>
+</html>

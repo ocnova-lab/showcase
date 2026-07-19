@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Лента symmetrysymptom — стенд: импульс + Flip</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0c0c0d; }
+
+  /* Лента. Геометрия морфа выводится из одной переменной --m (0 = полный режим, 1 = мини),
+     которую ведёт JS тем же циклом, что и сдвиг ленты, — одни часы, прыжков нет по построению */
+  #ribbon { --m: 0; position: absolute; left: 0; top: 0; width: 100%;
+            margin: 0; padding: 0; list-style: none;
+            will-change: transform; pointer-events: none; }
+
+  #ribbon li { height: calc((1 - var(--m)) * 100vh + var(--m) * 110px);
+               display: flex; align-items: center; justify-content: center; }
+
+  /* Ячейка кадра: в полном режиме fit по высоте экрана (ширина из пропорции кадра --ar),
+     в мини — контейнер 300×100, фото режется под fill */
+  .cell { width: calc((1 - var(--m)) * (100vh * var(--ar, 1)) + var(--m) * 300px);
+          height: calc((1 - var(--m)) * 100vh + var(--m) * 100px);
+          max-width: 100vw;
+          transition: transform 600ms ease, opacity 300ms ease; }
+  .cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  #ribbon.mini li { perspective: 400px; }
+
+  /* Эффект Flip из stroll.css: rotateX ±80° + гашение; ось повёрнута на центр полосы */
+  #ribbon.mini li.past .cell   { transform-origin: 50% 100%; transform: rotateX(80deg);  opacity: 0; }
+  #ribbon.mini li.future .cell { transform-origin: 50% 0%;   transform: rotateX(-80deg); opacity: 0; }
+
+  /* Датчик выбора: рамка на кадре, ближайшем к центру */
+  #ribbon.mini li.current .cell { outline: 1px solid rgba(255,255,255,.7); outline-offset: 3px; }
+
+  /* Невидимые боковые зоны навигации */
+  .zone { position: fixed; top: 0; bottom: 0; width: 100px; z-index: 10; }
+  #zoneL { left: 0; }
+  #zoneR { right: 0; }
+
+  #hud { position: fixed; left: 14px; bottom: 12px; z-index: 20;
+         font: 12px/1 ui-monospace, SFMono-Regular, monospace;
+         color: rgba(255,255,255,.55); letter-spacing: .08em;
+         user-select: none; pointer-events: none; }
+</style>
+
+<ul id="ribbon"></ul>
+<div class="zone" id="zoneL"></div>
+<div class="zone" id="zoneR"></div>
+<div id="hud"></div>
+
+<script>
+const BASE = 'file:///Users/sergeigurov/Documents/Фотогалерея/symmetrysymptom/';
+const PHOTOS = ["616563996604170240.jpg", "616611270523764736.png", "616625166069432320.jpg", "616626952730804224.png", "616628993032093696.jpg", "616676763013103616.jpg", "616701417692987392.jpg", "616721798602555392.jpg", "616721841340514304.jpg", "616721887083495424.jpg", "616723438548221952.jpg", "616733882927185920.jpg", "616735487014699008.png", "616820759303700480.jpg", "616820810879025152.jpg", "617197208422514688.gif", "617268167679541248.jpg", "617268188711960576.jpg", "617280390187581440.jpg", "617297563201241088.jpg", "617297615893233664.jpg", "617338206725242880.gif", "617342247295483904.jpg", "617342387136708608.png", "617358199864033280.png", "617358343198146560.png", "617372472003739648.png", "617869737919234048.jpg", "617875389619027968.png", "617931248822796288.png", "617931302065291264.jpg", "617931345897947136.jpg", "618031852537675776.jpg", "618031863618011136.jpg", "618031922789203968.jpg", "618031957143666688.png", "618031990365732864.jpg", "618032068089217024.jpg", "618032145723719680.jpg", "618079983979708416.jpg", "618080048187097088.jpg", "618279747004366848.jpg", "618279820994985984.jpg", "618279861068414976.jpg", "618279885533839360.jpg", "618279931691106304.jpg", "618282994264948736.jpg", "618294387834830848.jpg", "618311668103102464.jpg", "618489260606144512.jpg", "618710751668011008.jpg", "618710806301900800.png", "618710838557179904.png", "618710890104209408.jpg", "618710941712957440.jpg", "618732877504462848.jpg", "618808476813115392.gif", "618889192456568832.png", "618890343208927232.jpg", "618891989146107904.jpg", "618892371856326656.jpg", "618892374057369600.jpg", "618892383742017536.jpg", "618892396216926208.jpg", "618892477498277888.jpg", "618892551707049984.jpg", "618892561573101568.jpg", "618892731759165440.jpg", "618892734521098240.jpg", "618892761519767552.jpg", "618893820050997248.png", "618896916302954496.jpg", "619081145086296064.jpg", "619094320946036736.jpg", "619260260867342336.jpg", "619267653329141760.jpg", "619291144018411520.png", "619333850145882112.png", "619333927510966272.png", "619334060064505856.jpg", "619334331524120576.jpg", "619334375308460032.jpg", "619708573463756800.jpg", "620030128797433857.png", "620162916823547904.jpg", "620250517122236416.jpg", "620250631179059201.jpg", "620250688804536320.png", "620250719224823808.jpg", "620250777012846592.jpg", "620250860733267968.jpg", "620250934592847872.jpg", "620250937509937153.jpg", "620250961670242304.png", "620250972490514432.jpg", "620251038453252096.png", "620466091992416256.png", "621152791719723010.gif", "621167112873033728.jpg", "621235534481817600.jpg", "621235774433755136.jpg", "621750060758253568.jpg", "621750136443453440.jpg", "621936187571109889.jpg", "621936222051368960.png", "621936239080275968.jpg", "621936297064513536.png", "621936344821792768.jpg", "621936391880851456.jpg", "621936421896388608.png", "621936481216364544.jpg", "622364515849420800.png", "622364586963763201.jpg", "622379032591433728.jpg", "622469796008722432.jpg", "622469863336787970.jpg", "623800915417284609.jpg", "623813500318400512.gif", "623815900408283137.jpg", "624200205040041984.jpg", "624200222190485504.jpg", "624200235049254912.png", "624200254998429696.jpg", "624200273622122496.jpg", "624200310518431744.jpg", "624200342337372160.jpg", "624200407866081280.jpg", "624208530065506304.jpg", "624215047109066752.jpg", "624215049990488064.gif", "624215114501013504.png", "624215153370660864.jpg", "624215222790602752.jpg", "624215227830026241.jpg", "624215233499676672.jpg", "624215238089244672.jpg", "624215254186033152.jpg", "624215258923499520.jpg", "624238708866088960.jpg", "624245664413614080.jpg", "624522520078499840.jpg", "624919694251638784.png", "624922407783759872.jpg", "625107314573295616.jpg", "625461595977515008.jpg", "625461613039878144.jpg", "625463163161313280.jpg", "625463180128387073.jpg", "625463215948742656.jpg", "625463232967131137.jpg", "626194868150140928.jpg", "626194945902002176.jpg", "626195167871959040.jpg", "626707452554084352.jpg", "626731760860921856.jpg", "626807970086436865.jpg", "627607025297276928.jpg", "628267887531032576.jpg", "628267902109450240.gif", "628267941857837057.jpg", "628272752764305408.jpg", "628273407153373184.jpg", "628273452309250048.jpg", "628273455482208256.jpg", "628273600217186304.jpg", "628691723171840000.jpg", "628863834865745920.jpg", "628863855704129536.png", "628863876369416192.gif", "628863986059853824.jpg", "628866029395787776.jpg", "628866195063472128.jpg", "628883678728192000.jpg", "628883704315576320.jpg", "628883711646154752.png", "628883715407380480.jpg", "628883848623702017.jpg", "628886450042191872.jpg", "628886682425606144.png", "628887115031265280.jpg", "628888912508682240.jpg", "629501336480792576.jpg", "629501472710819840.jpg", "629501538558246913.jpg", "629869164436258816.jpg", "629869279991480320.jpg", "629903553026310144.jpg", "630096613036179456.jpg", "630113746131517440.jpg", "630161661836345344.jpg", "630178183738785792.png", "630606141168156672.jpg", "630606179852255232.gif", "630747974420561920.png", "630755672071536641.jpg", "630755792707010560.jpg", "630755879945404416.png", "630776024238587904.jpg", "630776046128644096.gif", "630792690610618368.jpg", "630804706443264000.jpg", "630804927312166912.jpg", "630905606914670592.jpg", "630986341432360960.jpg", "631139151459270656.jpg", "631155409145741312.jpg", "631155452956278784.jpg", "631155499347443712.png", "631155540429586432.jpg", "631155626250289152.jpg", "631155671676665857.png", "631157939142623232.jpg", "631157970697322496.jpg", "631163898787217408.jpg", "631163921650319360.jpg", "631164703125749760.png", "631165653046509568.jpg", "631165741730791424.jpg", "631168773089607680.jpg", "631170332384018432.jpg", "631176423932051456.jpg", "631176444557639680.jpg", "631176462101266432.jpg", "631176511150489600.jpg", "631176522045276160.jpg", "631176526303477760.jpg", "631176531227656192.jpg", "631176537813794816.jpg", "631176702224154624.jpg", "631176731288633344.jpg", "631189767351140352.jpg", "631202711111630848.jpg", "631202772653670400.jpg", "631208815941025792.jpg", "631211377918427136.jpg", "631211474250039296.jpg", "631216296250474496.jpg", "631216394513612800.jpg", "631220926070063104.jpg", "631231706207338497.png", "631249077974204416.png", "631249161394716672.jpg", "631249313888174081.jpg", "631253589270102016.jpg", "631255763607830528.jpg", "631298800751902720.jpg", "631322085512380416.jpg", "631325832638529536.jpg", "631325951529287680.png", "631326024681111552.png", "631327674313457664.png", "631336927517442048.jpg", "631336970988257280.jpg", "631337001187164160.jpg", "631337018598817792.jpg", "631337044289929216.png", "631346364698279936.jpg", "631353594778664960.png", "631779202026340352.jpg", "631867034542768128.jpg", "631867069250600960.jpg", "631867097488736256.gif", "631867205928288256.jpg", "632071751014187008.jpg", "632108468056326144.png", "632115517905321984.jpg", "632115650850111488.jpg", "632115772028796928.jpg", "632116339758301184.jpg", "632312552317124608.jpg", "632501644470386688.jpg", "632521088361988096.jpg", "632521163915116544.png", "632521210229604352.png", "632524276438827008.jpg", "632524328979841024.jpg", "632586566840238081.png", "632595788998033408.jpg", "632660043434770432.jpg", "632796352304332800.jpg", "632796751927050240.jpg", "632801148252848128.png", "632954828809764864.jpg", "632971287031169024.jpg", "632971332607508480.jpg", "633077328941072384.png", "634111012965089280.jpg", "634120348243197953.gif", "634302104686804992.png", "634302158152597504.jpg", "634302189730496512.jpg", "634302256082288640.png", "634304890320076800.jpg", "634304929553661952.jpg", "634964901598806016.jpg", "635956907456249856.jpg", "637102324424310784.jpg", "640363961318096896.jpg", "645725342800199680.jpg", "651358973481697280.gif"];
+
+const ribbon = document.getElementById('ribbon');
+const hud = document.getElementById('hud');
+const N = PHOTOS.length;
+
+// Сборка ленты
+const items = [];
+{
+  const frag = document.createDocumentFragment();
+  for (const name of PHOTOS) {
+    const li = document.createElement('li');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.draggable = false;
+    img.src = BASE + encodeURIComponent(name);
+    img.onload = () => cell.style.setProperty('--ar', (img.naturalWidth / img.naturalHeight).toFixed(4));
+    cell.appendChild(img);
+    li.appendChild(cell);
+    frag.appendChild(li);
+    items.push(li);
+  }
+  ribbon.appendChild(frag);
+}
+
+const MINI_PITCH = 110, MINI_HALF = 55; // ячейка 100 + зазор 10
+const MORPH_MS = 600;
+
+let mode = 'full';        // 'full' | 'mini' — куда ведёт морф
+let index = 0;            // текущий кадр полного режима
+let vh = window.innerHeight;
+
+// Две виртуальные позиции ленты, каждая в своей геометрии; на экран идёт их смесь по e.
+// Морф: m — линейный прогресс, e — сглаженный (ease), из e выводятся И высоты (--m), И сдвиг.
+let m = 0, e = 0, mTarget = 0;
+let yFull = 0, targetFull = 0;   // полная геометрия: шаг = vh
+let yMini = 0, targetMini = 0;   // мини-геометрия: шаг = 110
+
+const clampIndex = i => Math.max(0, Math.min(N - 1, i));
+const miniTarget = i => vh / 2 - (i * MINI_PITCH + MINI_HALF);
+function miniClamp(v) {
+  const hi = vh / 2 - MINI_HALF;
+  const lo = vh / 2 - ((N - 1) * MINI_PITCH + MINI_HALF);
+  return Math.max(lo, Math.min(hi, v));
+}
+// Кадр, чей центр ближе всего к центру экрана (в мини-геометрии)
+const nearestMini = () => clampIndex(Math.round((vh / 2 - yMini - MINI_HALF) / MINI_PITCH));
+const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+// Подгрузка соседей, чтобы шаг не упирался в ленивую загрузку
+function preload(around) {
+  for (let i = clampIndex(around - 2); i <= clampIndex(around + 2); i++) {
+    items[i].querySelector('img').loading = 'eager';
+  }
+}
+
+// ——— Скролл ———
+// Полный режим: импульсный триггер — одна пауза между жестами = один шаг.
+// Мини-режим: непрерывная протяжка ленты.
+let acc = 0, lastWheel = 0, fired = false;
+window.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  if (mode === 'mini') {
+    targetMini = miniClamp(targetMini - ev.deltaY);
+    return;
+  }
+  const now = performance.now();
+  if (now - lastWheel > 140) { acc = 0; fired = false; } // тишина = новый импульс
+  lastWheel = now;
+  if (fired) return;
+  acc += ev.deltaY;
+  if (Math.abs(acc) > 60) {
+    index = clampIndex(index + Math.sign(acc));
+    targetFull = -index * vh;
+    preload(index);
+    fired = true;
+    acc = 0;
+  }
+}, { passive: false });
+
+window.addEventListener('keydown', ev => {
+  const step = { ArrowDown: 1, PageDown: 1, ArrowUp: -1, PageUp: -1 }[ev.key];
+  if (!step) return;
+  ev.preventDefault();
+  if (mode === 'mini') {
+    targetMini = miniClamp(targetMini - step * MINI_PITCH);
+  } else {
+    index = clampIndex(index + step);
+    targetFull = -index * vh;
+    preload(index);
+  }
+});
+
+// ——— Боковые зоны ———
+function enterMini() {
+  if (mode === 'mini') return;
+  mode = 'mini';
+  mTarget = 1;
+  ribbon.classList.add('mini');
+  // мини-позиция стартует сразу в цели: при e≈0 её вес нулевой, смесь введёт её плавно
+  targetMini = yMini = miniTarget(index);
+}
+function exitMini() {
+  if (mode === 'full') return;
+  index = nearestMini(); // выбор = кадр в центре
+  mode = 'full';
+  mTarget = 0;
+  ribbon.classList.remove('mini');
+  for (const li of items) {
+    li.classList.remove('past', 'future', 'current');
+    li._s = ''; li._c = false;
+  }
+  targetFull = yFull = -index * vh; // при e≈1 вес нулевой, смесь введёт плавно
+  preload(index);
+}
+for (const z of [document.getElementById('zoneL'), document.getElementById('zoneR')]) {
+  z.addEventListener('mouseenter', enterMini);
+  z.addEventListener('mouseleave', exitMini);
+}
+
+// ——— Кадровый цикл: одни часы на морф, позиции и датчик past/future ———
+let lastT = performance.now();
+function frame(now) {
+  const dt = Math.min(50, now - lastT);
+  lastT = now;
+
+  if (m !== mTarget) {
+    m = Math.max(0, Math.min(1, m + Math.sign(mTarget - m) * dt / MORPH_MS));
+    e = ease(m);
+    ribbon.style.setProperty('--m', e.toFixed(4));
+  }
+
+  yFull += (targetFull - yFull) * 0.12;
+  if (Math.abs(targetFull - yFull) < 0.3) yFull = targetFull;
+  yMini += (targetMini - yMini) * 0.12;
+  if (Math.abs(targetMini - yMini) < 0.3) yMini = targetMini;
+
+  const y = (1 - e) * yFull + e * yMini;
+  ribbon.style.transform = `translate3d(0, ${y.toFixed(2)}px, 0)`;
+
+  if (e > 0) {
+    // геометрия для датчика — та же смесь, что на экране
+    const H = (1 - e) * vh + e * MINI_PITCH;
+    const cur = nearestMini();
+    for (let i = 0; i < N; i++) {
+      const li = items[i];
+      const top = i * H + y, bottom = top + H;
+      const s = bottom < 0 ? 'past' : (top > vh ? 'future' : '');
+      if (li._s !== s) {
+        li.classList.remove('past', 'future');
+        if (s) li.classList.add(s);
+        li._s = s;
+      }
+      const c = i === cur;
+      if (li._c !== c) { li.classList.toggle('current', c); li._c = c; }
+    }
+    hud.textContent = (cur + 1) + ' / ' + N;
+  } else {
+    hud.textContent = (index + 1) + ' / ' + N;
+  }
+  requestAnimationFrame(frame);
+}
+
+window.addEventListener('resize', () => {
+  vh = window.innerHeight;
+  targetFull = -index * vh;
+  if (mode === 'mini') targetMini = miniClamp(miniTarget(nearestMini()));
+});
+
+preload(0);
+requestAnimationFrame(frame);
+</script>
